@@ -136,6 +136,36 @@ WEB_TRIGGERS = [
     "current ", "right now ", "today's ",
 ]
 
+# ── instant local responses (no model needed) ────────────────────────────────
+import datetime as _dt
+
+def _address() -> str:
+    return "ma'am" if _speaker_gender == "female" else "sir"
+
+def check_instant(question: str) -> str:
+    """Return an instant answer for common questions, or '' to fall through to the model."""
+    q = question.lower().strip().rstrip("?.!")
+    ad = _address()
+
+    if any(t in q for t in ["what time is it", "what's the time", "current time", "tell me the time"]):
+        return f"It's {_dt.datetime.now().strftime('%-I:%M %p')}, {ad}."
+
+    if any(t in q for t in ["what's today's date", "what is today's date", "what's the date",
+                              "what day is it", "today's date", "what is the date"]):
+        return f"Today is {_dt.datetime.now().strftime('%A, %B %-d, %Y')}, {ad}."
+
+    if any(t in q for t in ["what's your name", "what is your name", "who are you"]):
+        return f"I'm Jarvis, your personal AI assistant, {ad}."
+
+    if any(t in q for t in ["who made you", "who built you", "who created you", "who programmed you"]):
+        return f"I was built using open source tools — Ollama, Piper, Whisper, and openWakeWord, {ad}."
+
+    if any(t in q for t in ["what can you do", "what are your capabilities", "what do you know", "list your commands"]):
+        return (f"I can answer questions from my archive, search the web, save notes, "
+                f"check weather, set timers, hold a conversation, and recognise who's speaking, {ad}.")
+
+    return ""
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 _mic_stream     = None      # set by wake_word_loop; speak() pauses it during TTS
 _speaker_gender = "unknown" # updated per utterance; read by build_prompt
@@ -491,8 +521,18 @@ def continuous_loop(whisper_model, pa, history: list) -> None:
                 speak("Goodbye.")
                 break
 
-            print("Thinking...", end=" ", flush=True)
+            instant = check_instant(question)
+            if instant:
+                print(f"\nJarvis: {instant}\n")
+                speak(instant)
+                history.append((question, instant))
+                log_session_entry(question, instant)
+                _drain_stream(stream, seconds=0.8)
+                continue
+
             groq_mode = os.environ.get("JARVIS_BACKEND", "") == "groq"
+            if not groq_mode:
+                print("Thinking...", end=" ", flush=True)
             if groq_mode:
                 answer = ask_jarvis(question, history)
                 _already_spoken = False
@@ -860,13 +900,27 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
                 print('\n[Listening for "Hey Jarvis"...]')
                 continue
 
+            # ── instant responses (no model needed) ───────────────────────
+            instant = check_instant(question)
+            if instant:
+                print(f"\nJarvis: {instant}\n")
+                speak(instant)
+                history.append((question, instant))
+                log_session_entry(question, instant)
+                last_trigger = time.time()
+                _reset_oww(oww_model)
+                _drain_stream(stream, seconds=1.0)
+                print('\n[Listening for "Hey Jarvis"...]')
+                continue
+
             # ── answer ────────────────────────────────────────────────────
-            print("Thinking...", end=" ", flush=True)
+            groq_mode = os.environ.get("JARVIS_BACKEND", "") == "groq"
+            if not groq_mode:
+                print("Thinking...", end=" ", flush=True)
 
             # Check if question is asking for a live web search
             use_web = any(lower_q.startswith(t) or f" {t}" in lower_q for t in WEB_TRIGGERS)
             _already_spoken = False
-            groq_mode = os.environ.get("JARVIS_BACKEND", "") == "groq"
             if use_web:
                 answer = ask_jarvis_web(question, history)
                 last_sources = ["web search via DuckDuckGo"]
