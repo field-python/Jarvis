@@ -8,7 +8,17 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 base_dir="$(cd -- "$script_dir/.." && pwd -P)"
 piper_bin="${JARVIS_VENV:-$HOME/.jarvis-venv}/bin/piper"
-model="$base_dir/voice/en_GB-alan-medium.onnx"
+
+# Read voice from config/voice.conf — falls back to alan (default)
+voice_conf="$base_dir/config/voice.conf"
+if [[ -n "${JARVIS_VOICE_OVERRIDE:-}" ]]; then
+  model="$JARVIS_VOICE_OVERRIDE"
+elif [[ -f "$voice_conf" ]]; then
+  voice_name="$(head -1 "$voice_conf" | tr -d '[:space:]')"
+  model="$base_dir/voice/${voice_name}.onnx"
+else
+  model="$base_dir/voice/en_GB-alan-medium.onnx"
+fi
 
 if [[ ! -f "$piper_bin" ]]; then
   echo "[Jarvis TTS] Piper not installed. Run: Jarvis install-voice" >&2

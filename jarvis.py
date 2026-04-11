@@ -181,6 +181,10 @@ def do_help():
   Jarvis download-general        Download general knowledge
   Jarvis rebuild-index           Rebuild semantic search index
 
+  CUSTOMIZE
+  Jarvis set-voice               Pick a TTS voice (British, US male/female, etc.)
+  Jarvis customize               Full customization menu (voice, layout, fonts)
+
   SETUP
   Jarvis install-voice           One-time setup for voice mode
   Jarvis onboard                 Re-run first-time setup wizard
@@ -501,6 +505,10 @@ def main():
             run_py("voice.py", "--convo")
     elif cmd == "install-voice":
         subprocess.run(["bash", str(SCRIPTS / "install-voice.sh")])
+    elif cmd in ("set-voice", "voice-select"):
+        run_py("set-voice.py")
+    elif cmd == "customize":
+        run_py("customize.py")
     elif cmd in ("chat", "hello"):
         if fast_mode:
             run_py("chat.py", extra_env={"JARVIS_MODEL": "Jarvis-fast"})
