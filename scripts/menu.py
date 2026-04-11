@@ -65,8 +65,9 @@ MENU = [
     ("Download culture & occult", ["download-culture"], False, ""),
     ("Download Linux & tech",   ["download-tech"], False, ""),
     ("Download pop culture",    ["download-pop-culture"], False, ""),
-    ("Download misc knowledge", ["download-misc"], False, ""),
-    ("Download law & legal ref",["download-law"],  False, ""),
+    ("Download misc knowledge",  ["download-misc"],   False, ""),
+    ("Download law & legal ref", ["download-law"],   False, ""),
+    ("Download fringe & esoteric",["download-fringe"],False, ""),
     ("Legal analysis / rights", ["legal"],         True,  "Legal scenario or question: "),
     ("Show help",               ["help"],          False, ""),
 ]

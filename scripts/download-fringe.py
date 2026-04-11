@@ -1,0 +1,577 @@
+#!/usr/bin/env python3
+"""
+download-fringe.py — Download Tesla, free energy, vortex math, quantum
+                     consciousness, Project Paperclip, suppressed history,
+                     frequency/resonance/entrainment, and fringe science topics.
+
+Run: Jarvis download-fringe [category|all] [--force]
+
+Sources: Wikipedia only. No Snopes, no partisan fact-checkers.
+Content is presented as-is — historical record, documented claims,
+and scientific phenomena. Jarvis presents information; you decide.
+"""
+
+import json
+import os
+import re
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(BASE_DIR, "notes", "generated", "fringe")
+
+TOPICS = {
+
+    # ── Nikola Tesla ───────────────────────────────────────────────────────────
+    "tesla": [
+        "Nikola Tesla",
+        "Tesla coil",
+        "Wardenclyffe Tower",
+        "Tesla's oscillator",
+        "Earthquake machine",
+        "Teleforce",
+        "Death ray",
+        "Tesla's tower",
+        "Tesla's laboratory",
+        "Colorado Springs laboratory",
+        "Alternating current",
+        "War of currents",
+        "Thomas Edison",
+        "George Westinghouse",
+        "J. P. Morgan",
+        "Tesla's papers",
+        "Tesla electric car",
+        "Tesla's views on free energy",
+        "Resonant inductive coupling",
+        "Wireless power transfer",
+        "Electromagnetic induction",
+        "Tesla's patents",
+        "Tesla's later life",
+        "John G. Trump",
+        "FBI and Tesla's papers",
+        "Tesla (unit)",
+        "Alternating current motor",
+        "Polyphase system",
+        "Radio",
+        "Guglielmo Marconi",
+        "Priority dispute over the invention of radio",
+    ],
+
+    # ── Free Energy & Suppressed Inventions ───────────────────────────────────
+    "free-energy": [
+        "Free energy suppression conspiracy theory",
+        "Perpetual motion",
+        "Zero-point energy",
+        "Aether (classical element)",
+        "Luminiferous aether",
+        "Wilhelm Reich",
+        "Orgone",
+        "Orgone accumulator",
+        "Royal Rife",
+        "Rife machine",
+        "Georges Lakhovsky",
+        "T. Henry Moray",
+        "Stanley Meyer",
+        "Water fuel cell",
+        "Eugene Mallove",
+        "Cold fusion",
+        "Pons–Fleischmann experiment",
+        "Fleischmann–Pons experiment",
+        "Overunity",
+        "Motionless electromagnetic generator",
+        "John Bedini",
+        "Tom Bearden",
+        "Scalar field theory (pseudoscience)",
+        "Dennis Lee (inventor)",
+        "Paul Pantone",
+        "Radiant energy",
+        "Viktor Schauberger",
+        "Implosion (mechanical process)",
+        "Atmospheric electricity",
+        "Ball lightning",
+        "Hutchison effect",
+    ],
+
+    # ── Vortex Math & Sacred Geometry ─────────────────────────────────────────
+    "vortex-math": [
+        "Vortex-based mathematics",
+        "Marko Rodin",
+        "Sacred geometry",
+        "Flower of Life",
+        "Metatron's Cube",
+        "Vesica piscis",
+        "Golden ratio",
+        "Fibonacci sequence",
+        "Fibonacci number",
+        "Fractal",
+        "Mandelbrot set",
+        "Phi",
+        "Pi",
+        "Platonic solids",
+        "Tetrahedron",
+        "Icosahedron",
+        "Dodecahedron",
+        "Torus",
+        "Toroidal space",
+        "Sacred architecture",
+        "Geometry in nature",
+        "Cymatics",
+        "Ernst Chladni",
+        "Hans Jenny (cymatics)",
+        "Pattern formation",
+        "Self-similarity",
+        "Chaos theory",
+        "Butterfly effect",
+        "Emergence",
+        "Attractor",
+        "Strange attractor",
+        "Lemniscate of Bernoulli",
+        "Number theory",
+        "Digital root",
+    ],
+
+    # ── Frequency, Vibration & Resonance ──────────────────────────────────────
+    "frequency-vibration": [
+        "Resonance",
+        "Mechanical resonance",
+        "Resonant frequency",
+        "Natural frequency",
+        "Harmonic oscillator",
+        "Entrainment (physics)",
+        "Synchronization of chaos",
+        "Coupled oscillators",
+        "Kuramoto model",
+        "Christiaan Huygens",
+        "Pendulum clock",
+        "Sympathetic resonance",
+        "Acoustic resonance",
+        "Helmholtz resonance",
+        "Standing wave",
+        "Wave interference",
+        "Beat (acoustics)",
+        "Binaural beats",
+        "Brainwave entrainment",
+        "Solfège",
+        "A440 (pitch standard)",
+        "432 Hz",
+        "Schumann resonances",
+        "Infrasound",
+        "Ultrasound",
+        "Vibration",
+        "Frequency",
+        "Hertz",
+        "Sound healing",
+        "Music therapy",
+        "Cymatics",
+        "Chladni figures",
+        "Tacoma Narrows Bridge collapse",
+        "Resonance disaster",
+        "Millennium Bridge",
+        "Stochastic resonance",
+        "Tesla's resonance experiments",
+        "Harmonic series (music)",
+        "Overtone",
+        "Fundamental frequency",
+    ],
+
+    # ── Quantum Physics & Consciousness ───────────────────────────────────────
+    "quantum-consciousness": [
+        "Quantum mechanics",
+        "Wave–particle duality",
+        "Double-slit experiment",
+        "Observer effect (physics)",
+        "Schrödinger's cat",
+        "Heisenberg uncertainty principle",
+        "Quantum entanglement",
+        "Quantum superposition",
+        "Many-worlds interpretation",
+        "Copenhagen interpretation",
+        "Pilot wave theory",
+        "Quantum nonlocality",
+        "Bell's theorem",
+        "EPR paradox",
+        "Quantum tunneling",
+        "Zero-point energy",
+        "Vacuum energy",
+        "Quantum field theory",
+        "String theory",
+        "M-theory",
+        "Multiverse",
+        "Simulation hypothesis",
+        "Orchestrated objective reduction",
+        "Roger Penrose",
+        "Stuart Hameroff",
+        "Quantum mind",
+        "Consciousness",
+        "Hard problem of consciousness",
+        "Panpsychism",
+        "Integrated information theory",
+        "Global workspace theory",
+        "Biocentrism (cosmology)",
+        "Robert Lanza",
+        "Holographic principle",
+        "Holographic universe",
+        "David Bohm",
+        "Implicate and explicate order",
+        "Morphic field",
+        "Rupert Sheldrake",
+        "Quantum Biology",
+        "Photosynthesis quantum effects",
+        "Quantum cognition",
+    ],
+
+    # ── Secrets of the Universe & Cosmology ───────────────────────────────────
+    "secrets-universe": [
+        "Dark matter",
+        "Dark energy",
+        "Big Bang",
+        "Fine-tuned universe",
+        "Anthropic principle",
+        "Fermi paradox",
+        "Great Filter",
+        "Rare Earth hypothesis",
+        "Simulation hypothesis",
+        "Mathematical universe hypothesis",
+        "Max Tegmark",
+        "Eternal inflation",
+        "Cyclic model",
+        "Conformal cyclic cosmology",
+        "Roger Penrose",
+        "Cosmic inflation",
+        "Alan Guth",
+        "Primordial black hole",
+        "White hole",
+        "Wormhole",
+        "Closed timelike curve",
+        "Time travel",
+        "Grandfather paradox",
+        "Tipler cylinder",
+        "Alcubierre drive",
+        "Dyson sphere",
+        "Kardashev scale",
+        "Cosmic microwave background",
+        "Entropy",
+        "Heat death of the universe",
+        "Big Rip",
+        "Big Crunch",
+        "Steady-state model",
+        "Electric universe",
+        "Plasma cosmology",
+        "Birkeland current",
+        "Thunderbolts Project",
+    ],
+
+    # ── Werner von Braun & Operation Paperclip ────────────────────────────────
+    "paperclip": [
+        "Operation Paperclip",
+        "Werner von Braun",
+        "V-2 rocket",
+        "Mittelwerk",
+        "Dora concentration camp",
+        "Peenemünde Army Research Center",
+        "Arthur Rudolph",
+        "Wernher von Braun",
+        "NASA",
+        "Saturn V",
+        "Apollo program",
+        "Redstone Arsenal",
+        "Space Race",
+        "Marshall Space Flight Center",
+        "JATO",
+        "Jack Parsons",
+        "Jet Propulsion Laboratory",
+        "Aleister Crowley",
+        "Thelema",
+        "L. Ron Hubbard",
+        "Parsons–Hubbard affair",
+        "ODESSA",
+        "Ratlines (World War II aftermath)",
+        "Klaus Barbie",
+        "Josef Mengele",
+        "Nazi human experimentation",
+        "Unit 731",
+        "Hubertus Strughold",
+        "Space medicine",
+        "Project 63",
+        "Walter Dornberger",
+        "Kammler group",
+        "Nazi secret weapons",
+        "Horten brothers",
+        "Foo fighter",
+    ],
+
+    # ── Secret Societies & Hidden History ─────────────────────────────────────
+    "secret-societies": [
+        "Freemasonry",
+        "History of Freemasonry",
+        "Illuminati",
+        "Bavarian Illuminati",
+        "Adam Weishaupt",
+        "Skull and Bones",
+        "Bohemian Grove",
+        "Trilateral Commission",
+        "Council on Foreign Relations",
+        "Bilderberg Group",
+        "Club of Rome",
+        "Rosicrucian",
+        "Knights Templar",
+        "Priory of Sion",
+        "Opus Dei",
+        "Order of the Golden Dawn",
+        "Hermetic Order of the Golden Dawn",
+        "Ordo Templi Orientis",
+        "Thule Society",
+        "Vril Society",
+        "Ahnenerbe",
+        "Heinrich Himmler",
+        "Rudolf Hess",
+        "Nazi occultism",
+        "Spear of Destiny",
+        "Holy Grail",
+        "Ark of the Covenant",
+        "Templar treasure",
+        "Oak Island",
+        "Rennes-le-Château",
+        "Cathars",
+        "Gnosticism",
+    ],
+
+    # ── Government Programs & Declassified Ops ────────────────────────────────
+    "declassified": [
+        "MKULTRA",
+        "Project ARTICHOKE",
+        "Project BLUEBIRD",
+        "COINTELPRO",
+        "Operation Mockingbird",
+        "Operation Northwoods",
+        "Operation Ajax",
+        "Bay of Pigs Invasion",
+        "Iran–Contra affair",
+        "Church Committee",
+        "Frank Church",
+        "Gary Webb",
+        "Dark Alliance (journalism)",
+        "CIA involvement in Contra cocaine trafficking",
+        "Project MKUltra",
+        "Tuskegee syphilis experiment",
+        "Guatemalan syphilis experiments",
+        "Human radiation experiments",
+        "Project 112",
+        "Project SHAD",
+        "Edgewood Arsenal experiments",
+        "Stanford prison experiment",
+        "Milgram experiment",
+        "Project Blue Book",
+        "Majestic 12",
+        "Roswell UFO incident",
+        "Area 51",
+        "S-4 (military base)",
+        "Bob Lazar",
+        "UAP disclosure",
+        "Advanced Aerospace Threat Identification Program",
+        "Unidentified aerial phenomenon",
+        "Pentagon UFO videos",
+        "Havana syndrome",
+    ],
+
+    # ── UFOs & Extraterrestrial ────────────────────────────────────────────────
+    "ufo-extraterrestrial": [
+        "UFO sightings",
+        "Unidentified flying object",
+        "Unidentified aerial phenomenon",
+        "Extraterrestrial life",
+        "Fermi paradox",
+        "Drake equation",
+        "SETI",
+        "Roswell UFO incident",
+        "Area 51",
+        "Bob Lazar",
+        "Kenneth Arnold UFO sighting",
+        "Rendlesham Forest incident",
+        "Battle of Los Angeles",
+        "Phoenix Lights",
+        "Tic Tac UFO incident",
+        "USS Nimitz UFO incident",
+        "Advanced Aerospace Threat Identification Program",
+        "All-domain Anomaly Resolution Office",
+        "David Fravor",
+        "Luis Elizondo",
+        "To the Stars Academy of Arts and Science",
+        "Jacques Vallée",
+        "J. Allen Hynek",
+        "Alien abduction",
+        "Betty and Barney Hill",
+        "Travis Walton",
+        "Ancient astronauts",
+        "Erich von Däniken",
+        "Chariots of the Gods",
+        "Zecharia Sitchin",
+        "Anunnaki",
+        "Giorgio A. Tsoukalos",
+        "Nazca Lines",
+        "Elongated skulls",
+        "Starchild skull",
+    ],
+
+    # ── Alternative Archaeology & Ancient Mysteries ───────────────────────────
+    "ancient-mysteries": [
+        "Great Pyramid of Giza",
+        "Sphinx",
+        "Alternative theories about the Great Pyramid",
+        "Graham Hancock",
+        "Fingerprints of the Gods",
+        "Robert Schoch",
+        "Göbekli Tepe",
+        "Younger Dryas impact hypothesis",
+        "Lost city of Atlantis",
+        "Plato's Atlantis",
+        "Lemuria",
+        "Mu (lost continent)",
+        "Tartaria (conspiracy theory)",
+        "Mud flood theory",
+        "Phantom time hypothesis",
+        "Flat Earth",
+        "Hollow Earth",
+        "Agharti",
+        "John Cleves Symmes Jr.",
+        "Piri Reis map",
+        "Antikythera mechanism",
+        "Baghdad Battery",
+        "Saqqara bird",
+        "Ancient Egypt",
+        "Egyptian mythology",
+        "Book of the Dead",
+        "Hermeticism",
+        "Emerald Tablet",
+        "Hermes Trismegistus",
+        "Alchemy",
+        "Philosopher's stone",
+        "Stonehenge",
+        "Ley line",
+        "Earth mysteries",
+        "Archaeoastronomy",
+    ],
+
+    # ── Mind Control & Surveillance ───────────────────────────────────────────
+    "mind-control": [
+        "MKULTRA",
+        "Brainwashing",
+        "Mind control",
+        "Psychotronics",
+        "Psychotronic weapon",
+        "Non-lethal weapon",
+        "Active Denial System",
+        "Directed-energy weapon",
+        "Subliminal stimuli",
+        "Subliminal advertising",
+        "Targeted individual",
+        "Gang stalking",
+        "Electronic harassment",
+        "Voice-to-skull device",
+        "Microwave auditory effect",
+        "Frey effect",
+        "LIDA machine",
+        "EEG heterodyning",
+        "Manchurian Candidate",
+        "Sirhan Sirhan",
+        "Project OFTEN",
+        "Project MONARCH",
+        "Cathy O'Brien",
+        "Dissociative identity disorder",
+        "Mass psychogenic illness",
+        "Social engineering (political science)",
+        "Propaganda techniques",
+        "Edward Bernays",
+        "Manufactured consent",
+        "Noam Chomsky",
+        "Manufacturing Consent",
+        "Filter bubble",
+        "Algorithmic radicalization",
+    ],
+}
+
+
+def slugify(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def wiki_fetch(title, max_chars=6000):
+    params = urllib.parse.urlencode({
+        "action":          "query",
+        "titles":          title,
+        "prop":            "extracts",
+        "explaintext":     "1",
+        "exsectionformat": "plain",
+        "format":          "json",
+        "redirects":       "1",
+        "exchars":         str(max_chars),
+    })
+    url = f"https://en.wikipedia.org/w/api.php?{params}"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "JarvisOfflineAssistant/1.0 (offline AI; personal use)"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data  = json.loads(r.read().decode("utf-8"))
+        pages = data.get("query", {}).get("pages", {})
+        if not pages:
+            return None
+        page = next(iter(pages.values()))
+        if page.get("pageid", -1) == -1:
+            return None
+        text = page.get("extract", "").strip()
+        return text if len(text) > 150 else None
+    except Exception as e:
+        print(f"    warn: {title}: {e}")
+        return None
+
+
+def main():
+    target = sys.argv[1] if len(sys.argv) > 1 else "all"
+    force  = "--force" in sys.argv
+
+    if target == "all":
+        cats = list(TOPICS.keys())
+    elif target in TOPICS:
+        cats = [target]
+    else:
+        print(f"Unknown category: {target}")
+        print(f"Available: {', '.join(TOPICS.keys())}, all")
+        sys.exit(1)
+
+    grand_total = 0
+    for cat in cats:
+        out_dir = os.path.join(OUTPUT_DIR, cat)
+        os.makedirs(out_dir, exist_ok=True)
+        pages = TOPICS[cat]
+        print(f"\n[{cat.upper()}]  {len(pages)} topics  →  {out_dir}")
+
+        for title in pages:
+            slug     = slugify(title)
+            out_path = os.path.join(out_dir, f"{slug}.md")
+
+            if os.path.exists(out_path) and not force:
+                print(f"  skip  {title}")
+                continue
+
+            print(f"  fetch {title}...", end=" ", flush=True)
+            text = wiki_fetch(title)
+            if not text:
+                print("not found")
+                continue
+
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(f"# {title}\n\n*Source: Wikipedia*\n\n{text}\n")
+            print(f"ok ({len(text):,} chars)")
+            grand_total += 1
+            time.sleep(0.3)
+
+    print(f"\nDone — {grand_total} articles downloaded.")
+    print("Run 'Jarvis rebuild-index' to make them searchable.")
+
+
+if __name__ == "__main__":
+    main()

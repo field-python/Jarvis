@@ -184,6 +184,9 @@ def do_help():
   Jarvis download-pop-culture    Download movies, TV, music, gaming, sports stars
   Jarvis download-misc           Download law, finance, astronomy, mythology, philosophy,
                                    psychology, true crime, military, automotive
+  Jarvis download-fringe         Download Tesla, free energy, vortex math, quantum
+                                   consciousness, Project Paperclip, UFOs, ancient
+                                   mysteries, frequency/resonance/entrainment, MKULTRA
   Jarvis download-law            Download comprehensive law: Black's Law Dictionary,
                                    landmark cases, constitutional law, maritime, corporate,
                                    foundational documents (Constitution, Magna Carta, etc.)
@@ -551,6 +554,9 @@ def main():
         run_py("download-pop-culture.py", *rest)
     elif cmd in ("download-misc", "download-extra"):
         run_py("download-misc.py", *rest)
+    elif cmd in ("download-fringe", "download-esoteric", "download-conspiracy",
+                 "download-tesla", "download-ufo"):
+        run_py("download-fringe.py", *rest)
     elif cmd in ("download-law", "download-legal"):
         run_py("download-law.py", *rest)
     elif cmd in ("legal", "law", "rights"):
