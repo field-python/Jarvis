@@ -1,16 +1,12 @@
-# ── sensitive config ──────────────────────────────────────────────────────────
-config/groq.conf
-config/location.conf
-config/voice.conf
-config/cloud-mode
-config/fast-mode
-config/groq-mode
-config/onboarding-done
-config/wikipedia.conf
-config/vast.conf
+# ── sensitive config (entire directory — new files auto-protected) ────────────
+config/*
+!config/.gitkeep
 
-# ── personal data ─────────────────────────────────────────────────────────────
-memory/user-memory.md
+# ── personal data (entire memory directory — all personalization files) ────────
+memory/*
+!memory/.gitkeep
+
+# ── personal notes and session data ──────────────────────────────────────────
 notes/personal-notes/
 notes/voice-sessions/
 notes/saved-answers/

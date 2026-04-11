@@ -88,6 +88,47 @@ def getch():
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
+def input_with_esc(prompt_str):
+    """Like input() but returns None if ESC is pressed. Supports backspace."""
+    import select
+    sys.stdout.write(prompt_str)
+    sys.stdout.flush()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    buf = []
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                # Check for arrow keys or other escape sequences
+                r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if r:
+                    sys.stdin.read(2)  # drain the sequence, ignore it
+                    continue
+                # Plain ESC — go back to menu
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return None
+            elif ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(buf)
+            elif ch in ("\x7f", "\x08"):  # backspace
+                if buf:
+                    buf.pop()
+                    sys.stdout.write("\x08 \x08")
+                    sys.stdout.flush()
+            elif ch == "\x03":  # Ctrl+C
+                raise KeyboardInterrupt
+            elif ord(ch) >= 32:
+                buf.append(ch)
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 def draw_menu(items, selected):
     os.system("clear")
     HR = "━" * 76
@@ -135,7 +176,7 @@ ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web"}
 
 def run_command(label, cmd_args, needs_input, prompt):
     loop = cmd_args[0] in ASK_LOOP_CMDS and needs_input
-    user_input = None
+    first = True
 
     while True:
         os.system("clear")
@@ -145,13 +186,17 @@ def run_command(label, cmd_args, needs_input, prompt):
         print()
 
         if needs_input:
-            ask_prompt = prompt if user_input is None else "Next question (Enter for menu): "
+            ask_prompt = prompt if first else "Enter next question here or ESC for menu: "
+            first = False
             try:
-                user_input = input(f"  {YELLOW}{ask_prompt}{RESET}").strip()
-            except (EOFError, KeyboardInterrupt):
+                user_input = input_with_esc(f"  {YELLOW}{ask_prompt}{RESET}")
+            except KeyboardInterrupt:
                 return
+            if user_input is None:   # ESC pressed
+                return
+            user_input = user_input.strip()
             if not user_input:
-                return  # back to menu
+                continue  # empty Enter — re-show prompt
             full_cmd = [JARVIS] + cmd_args + [user_input]
         else:
             full_cmd = [JARVIS] + cmd_args
@@ -162,18 +207,13 @@ def run_command(label, cmd_args, needs_input, prompt):
         except KeyboardInterrupt:
             pass
 
-        # ── always pause so user can read the full response ───────────────────
+        # ── after response ────────────────────────────────────────────────────
         print()
         print(f"  {DIM}{'─' * 40}{RESET}")
 
         if loop:
-            try:
-                user_input = input(f"  {YELLOW}Type next question or Enter for menu: {RESET}").strip()
-            except (EOFError, KeyboardInterrupt):
-                return
-            if not user_input:
-                return
-            # loop — user_input is set, next iteration will run it
+            # loop back to top — next iteration shows "Enter next question here or ESC for menu:"
+            continue
         else:
             input(f"  {DIM}Press Enter to return to menu...{RESET}")
             return

@@ -181,6 +181,10 @@ def do_help():
   Jarvis download-general        Download general knowledge
   Jarvis rebuild-index           Rebuild semantic search index
 
+  WEB UI
+  Jarvis web-ui                  Start the web interface (phone/tablet access)
+  Jarvis web-pin XXXX            Set the 4-digit PIN for the web interface
+
   CUSTOMIZE
   Jarvis set-voice               Pick a TTS voice (British, US male/female, etc.)
   Jarvis customize               Full customization menu (voice, layout, fonts)
@@ -536,6 +540,23 @@ def main():
         run_py("fetch_url.py", *rest)
     elif cmd == "pdf":
         subprocess.run(["bash", str(SCRIPTS / "refresh-pdf-index.sh")])
+    elif cmd == "web-ui":
+        run_py("web.py")
+    elif cmd == "web-pin":
+        if not rest:
+            f = CONFIG / "web-pin.conf"
+            pin = f.read_text().strip() if f.exists() else "(not set)"
+            print(f"Current PIN: {pin}")
+            print(f"Change it:   Jarvis web-pin XXXX")
+        elif len(rest[0]) == 4 and rest[0].isdigit():
+            CONFIG.mkdir(parents=True, exist_ok=True)
+            pf = CONFIG / "web-pin.conf"
+            pf.write_text(rest[0] + "\n")
+            pf.chmod(0o600)
+            print(f"PIN updated to: {rest[0]}")
+        else:
+            print("PIN must be exactly 4 digits.  Example: Jarvis web-pin 7391")
+
     elif cmd == "cache-clear":
         cache = JARVIS_BASE / "cache" / "qa"
         if cache.exists():

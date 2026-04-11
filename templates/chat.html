@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Jarvis</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:         #0d0d0d;
+            --surface:    #161616;
+            --surface2:   #1e1e1e;
+            --cyan:       #00d4ff;
+            --cyan-dim:   #005f72;
+            --text:       #e0e0e0;
+            --dim:        #555;
+            --user-bg:    #1b3a4b;
+            --jarvis-bg:  #161616;
+            --border:     #2a2a2a;
+        }
+
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 15px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* ── Header ─────────────────────────────────────────────────────────── */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 11px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .hd { /* pulsing dot */
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 8px var(--cyan);
+            flex-shrink: 0;
+            animation: pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,100% { opacity: 1; } 50% { opacity: 0.35; }
+        }
+        .ht { font-size: 17px; font-weight: 800; color: var(--cyan); letter-spacing: 3px; }
+        .hl { font-size: 12px; color: var(--dim); margin-left: 2px; }
+        .lock-btn {
+            margin-left: auto;
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--dim);
+            font-size: 12px;
+            padding: 4px 11px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* ── Mode tabs ──────────────────────────────────────────────────────── */
+        .modes {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-shrink: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .modes::-webkit-scrollbar { display: none; }
+        .mbt {
+            flex: 1;
+            min-width: 68px;
+            padding: 9px 6px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--dim);
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color .15s, border-color .15s;
+        }
+        .mbt.on { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+        /* ── Chat ───────────────────────────────────────────────────────────── */
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overscroll-behavior: contain;
+        }
+
+        /* ── Message groups ─────────────────────────────────────────────────── */
+        .mg {
+            display: flex;
+            flex-direction: column;
+            max-width: 90%;
+        }
+        .mg.user   { align-self: flex-end;   align-items: flex-end; }
+        .mg.jarvis { align-self: flex-start; align-items: flex-start; }
+
+        .ml { font-size: 11px; color: var(--dim); margin-bottom: 4px; padding: 0 4px; }
+
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 18px;
+            line-height: 1.55;
+            word-break: break-word;
+        }
+        .mg.user   .bubble { background: var(--user-bg);   border-bottom-right-radius: 5px; }
+        .mg.jarvis .bubble { background: var(--jarvis-bg); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
+
+        /* Markdown inside bubble */
+        .bubble h1,.bubble h2,.bubble h3 { color: var(--cyan); margin: 8px 0 4px; font-size: 14px; font-weight: 700; }
+        .bubble strong { color: #fff; font-weight: 700; }
+        .bubble em     { color: #bbb; font-style: italic; }
+        .bubble code   {
+            background: #252525; color: #7ec8e3;
+            padding: 1px 5px; border-radius: 4px;
+            font-family: 'SF Mono','Fira Code',monospace; font-size: 13px;
+        }
+        .bubble pre {
+            background: #1a1a1a; border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px;
+            overflow-x: auto; margin: 6px 0;
+        }
+        .bubble pre code { background: none; padding: 0; }
+        .bubble ul,.bubble ol { padding-left: 18px; margin: 4px 0; }
+        .bubble li  { margin: 2px 0; }
+        .bubble p   { margin: 4px 0; }
+        .bubble p:first-child { margin-top: 0; }
+        .bubble p:last-child  { margin-bottom: 0; }
+
+        /* Streaming cursor */
+        .streaming::after {
+            content: '▋'; color: var(--cyan);
+            animation: blink .7s step-end infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+        /* Suggestion chips */
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .chip {
+            background: var(--surface2);
+            border: 1px solid var(--cyan-dim);
+            color: var(--cyan);
+            font-size: 12px;
+            padding: 5px 11px;
+            border-radius: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: background .1s;
+        }
+        .chip:active { background: var(--user-bg); }
+
+        /* Welcome screen */
+        .welcome {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            color: var(--dim);
+            gap: 10px;
+            pointer-events: none;
+        }
+        .wt { font-size: 34px; font-weight: 800; color: var(--cyan); letter-spacing: 6px; }
+        .ws { font-size: 14px; line-height: 1.65; }
+
+        /* ── Input area ─────────────────────────────────────────────────────── */
+        .ia {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 10px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+        .iw {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 9px 14px;
+            transition: border-color .15s;
+        }
+        .iw:focus-within { border-color: var(--cyan-dim); }
+        textarea {
+            width: 100%;
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--text);
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            max-height: 120px;
+            line-height: 1.4;
+            display: block;
+        }
+        textarea::placeholder { color: var(--dim); }
+
+        .sb {
+            width: 42px; height: 42px;
+            background: var(--cyan);
+            border: none; border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            transition: opacity .15s, transform .1s;
+        }
+        .sb:active   { transform: scale(0.9); }
+        .sb:disabled { opacity: 0.3; cursor: default; }
+        .sb svg { width: 19px; height: 19px; fill: #000; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <div class="hd"></div>
+    <span class="ht">JARVIS</span>
+    {% if location %}<span class="hl">{{ location }}</span>{% endif %}
+    <a class="lock-btn" href="/logout">Lock</a>
+</div>
+
+<!-- Mode tabs -->
+<div class="modes">
+    <button class="mbt on"  data-mode="normal">Ask</button>
+    <button class="mbt"     data-mode="brief">Brief</button>
+    <button class="mbt"     data-mode="detailed">Detailed</button>
+    <button class="mbt"     data-mode="cite">Cite Sources</button>
+</div>
+
+<!-- Chat -->
+<div class="chat" id="chat">
+    <div class="welcome" id="welcome">
+        <div class="wt">JARVIS</div>
+        <div class="ws">Your offline AI assistant.<br>Ask me anything.</div>
+    </div>
+</div>
+
+<!-- Input -->
+<div class="ia">
+    <div class="iw">
+        <textarea id="inp" placeholder="Ask Jarvis anything..." rows="1"></textarea>
+    </div>
+    <button class="sb" id="sb" onclick="send()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+</div>
+
+<script>
+'use strict';
+
+let mode = 'normal';
+let busy = false;
+
+// Mode buttons
+document.querySelectorAll('.mbt').forEach(b => {
+    b.onclick = () => {
+        document.querySelectorAll('.mbt').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        mode = b.dataset.mode;
+    };
+});
+
+// Auto-resize textarea
+const ta = document.getElementById('inp');
+ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+});
+ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!busy) send(); }
+});
+
+const chat = document.getElementById('chat');
+
+function scrollEnd(smooth) {
+    chat.scrollTo({ top: chat.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+function md(raw) {
+    // Escape HTML first
+    let s = raw
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Fenced code blocks (protect from further processing)
+    const blocks = [];
+    s = s.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_, c) => {
+        blocks.push(`<pre><code>${c.trim()}</code></pre>`);
+        return `\x00BLOCK${blocks.length - 1}\x00`;
+    });
+
+    // Inline code
+    s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    // Bold / italic
+    s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+    // Headers
+    s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    s = s.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
+    s = s.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
+    // Bullet / numbered lists → li
+    s = s.replace(/^[ \t]*[-*•] (.+)$/gm,     '<li>$1</li>');
+    s = s.replace(/^[ \t]*\d+\.\s+(.+)$/gm,   '<li>$1</li>');
+    // Wrap consecutive li in ul
+    s = s.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+    // Paragraphs
+    s = s.replace(/\n\n+/g, '</p><p>');
+    s = s.replace(/\n/g,    '<br>');
+    s = `<p>${s}</p>`;
+
+    // Restore code blocks
+    s = s.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => blocks[i]);
+
+    return s;
+}
+
+// ── Split off "Next questions:" section ──────────────────────────────────────
+function splitNext(raw) {
+    const idx = raw.search(/\nNext questions?:/i);
+    if (idx === -1) return { body: raw, chips: [] };
+    const body  = raw.slice(0, idx).trim();
+    const after = raw.slice(idx);
+    const chips = [...after.matchAll(/^[-•*]\s*(.+)$/gm)].map(m => m[1].trim());
+    return { body, chips };
+}
+
+// ── Add a message bubble ──────────────────────────────────────────────────────
+function addMsg(role, content, isHtml) {
+    const w = document.getElementById('welcome');
+    if (w) w.remove();
+
+    const g = document.createElement('div');
+    g.className = `mg ${role}`;
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    if (isHtml) b.innerHTML = content;
+    else        b.textContent = content;
+    const lbl = document.createElement('div');
+    lbl.className = 'ml';
+    lbl.textContent = role === 'user' ? 'You' : 'Jarvis';
+    g.appendChild(lbl);
+    g.appendChild(b);
+    chat.appendChild(g);
+    scrollEnd(false);
+    return { group: g, bubble: b };
+}
+
+// ── Finalize a streaming bubble ───────────────────────────────────────────────
+function finalize(group, bubble, raw) {
+    bubble.classList.remove('streaming');
+    const { body, chips } = splitNext(raw);
+    bubble.innerHTML = md(body);
+
+    if (chips.length) {
+        const wrap = document.createElement('div');
+        wrap.className = 'chips';
+        chips.forEach(q => {
+            const btn = document.createElement('button');
+            btn.className = 'chip';
+            btn.textContent = q;
+            btn.onclick = () => send(q);
+            wrap.appendChild(btn);
+        });
+        group.appendChild(wrap);
+    }
+    scrollEnd(true);
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+async function send(override) {
+    const q = (override || ta.value).trim();
+    if (!q || busy) return;
+
+    busy = true;
+    document.getElementById('sb').disabled = true;
+    if (!override) { ta.value = ''; ta.style.height = 'auto'; }
+
+    addMsg('user', q, false);
+    const { group, bubble } = addMsg('jarvis', '', false);
+    bubble.classList.add('streaming');
+    let raw = '';
+
+    try {
+        const res = await fetch('/ask', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ question: q, mode })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const reader  = res.body.getReader();
+        const decoder = new TextDecoder();
+        let   buf     = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop(); // keep incomplete line
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const payload = line.slice(6).trim();
+                if (payload === '[DONE]') { finalize(group, bubble, raw); break; }
+                try {
+                    raw += JSON.parse(payload).c;
+                    bubble.textContent = raw;
+                    scrollEnd(false);
+                } catch (_) {}
+            }
+        }
+
+        // In case [DONE] didn't arrive cleanly
+        if (bubble.classList.contains('streaming')) finalize(group, bubble, raw);
+
+    } catch (err) {
+        bubble.classList.remove('streaming');
+        bubble.textContent = 'Connection error — is Jarvis running?';
+    }
+
+    busy = false;
+    document.getElementById('sb').disabled = false;
+    ta.focus();
+}
+</script>
+</body>
+</html>

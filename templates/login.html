@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jarvis</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0d0d0d;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 36px;
+            padding: 40px 24px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* Logo */
+        .logo-wrap { text-align: center; }
+        .logo {
+            font-size: 38px;
+            font-weight: 800;
+            color: #00d4ff;
+            letter-spacing: 7px;
+        }
+        .logo-sub {
+            font-size: 13px;
+            color: #555;
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        /* PIN dots */
+        .dots {
+            display: flex;
+            gap: 18px;
+        }
+        .dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            transition: all 0.15s;
+        }
+        .dot.filled {
+            background: #00d4ff;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px #00d4ff66;
+        }
+        .dots.error .dot.filled {
+            background: #ff4455;
+            border-color: #ff4455;
+            box-shadow: 0 0 10px #ff445566;
+        }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            20%     { transform: translateX(-10px); }
+            40%     { transform: translateX(10px); }
+            60%     { transform: translateX(-7px); }
+            80%     { transform: translateX(7px); }
+        }
+        .dots.shake { animation: shake 0.4s ease; }
+
+        /* PIN pad */
+        .pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            width: 100%;
+        }
+        .key {
+            aspect-ratio: 1;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 50%;
+            color: #e0e0e0;
+            font-size: 24px;
+            font-weight: 400;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.08s, background 0.1s;
+            user-select: none;
+        }
+        .key:active {
+            transform: scale(0.88);
+            background: #252525;
+        }
+        .key.blank {
+            background: none;
+            border: none;
+            cursor: default;
+            pointer-events: none;
+        }
+        .key.del { font-size: 20px; color: #777; }
+
+        .err {
+            height: 16px;
+            font-size: 13px;
+            color: #ff4455;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="logo-wrap">
+        <div class="logo">JARVIS</div>
+        <div class="logo-sub">Enter PIN to continue</div>
+    </div>
+
+    <div class="dots" id="dots">
+        <div class="dot" id="d0"></div>
+        <div class="dot" id="d1"></div>
+        <div class="dot" id="d2"></div>
+        <div class="dot" id="d3"></div>
+    </div>
+
+    <div class="pad">
+        <button class="key" onclick="press('1')">1</button>
+        <button class="key" onclick="press('2')">2</button>
+        <button class="key" onclick="press('3')">3</button>
+        <button class="key" onclick="press('4')">4</button>
+        <button class="key" onclick="press('5')">5</button>
+        <button class="key" onclick="press('6')">6</button>
+        <button class="key" onclick="press('7')">7</button>
+        <button class="key" onclick="press('8')">8</button>
+        <button class="key" onclick="press('9')">9</button>
+        <div  class="key blank"></div>
+        <button class="key" onclick="press('0')">0</button>
+        <button class="key del" onclick="del()">⌫</button>
+    </div>
+
+    <div class="err" id="err">
+        {% if error %}Incorrect PIN — try again{% endif %}
+    </div>
+</div>
+
+<!-- Hidden form -->
+<form id="f" method="POST" action="/login" style="display:none">
+    <input type="hidden" name="pin" id="pinVal">
+</form>
+
+<script>
+    let pin = '';
+
+    function dots() {
+        for (let i = 0; i < 4; i++)
+            document.getElementById('d' + i).classList.toggle('filled', i < pin.length);
+    }
+
+    function press(d) {
+        if (pin.length >= 4) return;
+        pin += d;
+        dots();
+        if (pin.length === 4) setTimeout(submit, 120);
+    }
+
+    function del() {
+        pin = pin.slice(0, -1);
+        dots();
+        document.getElementById('err').textContent = '';
+        document.getElementById('dots').classList.remove('error');
+    }
+
+    function submit() {
+        document.getElementById('pinVal').value = pin;
+        document.getElementById('f').submit();
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', e => {
+        if (e.key >= '0' && e.key <= '9') press(e.key);
+        else if (e.key === 'Backspace') del();
+    });
+
+    // Show server-side error state
+    {% if error %}
+    document.getElementById('dots').classList.add('error');
+    setTimeout(() => document.getElementById('err').textContent = '', 3000);
+    {% endif %}
+</script>
+</body>
+</html>
