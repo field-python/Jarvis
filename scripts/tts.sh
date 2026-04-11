@@ -40,6 +40,10 @@ clean_text="$(printf '%s' "$text" \
   | sed 's/\[.*\](.*)/link/g' \
   | tr -s ' \n' ' ')"
 
+tmp="$(mktemp /tmp/jarvis-tts-XXXXXX.raw)"
 printf '%s' "$clean_text" \
   | "$piper_bin" --model "$model" --output_raw 2>/dev/null \
-  | aplay -D pulse -r 22050 -f S16_LE -t raw -q 2>/dev/null
+  > "$tmp"
+sox -t raw -r 22050 -e signed -b 16 -c 1 "$tmp" -t wav - 2>/dev/null \
+  | paplay --rate=22050 --format=s16le --channels=1 2>/dev/null
+rm -f "$tmp"
