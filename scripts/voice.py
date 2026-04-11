@@ -28,6 +28,17 @@ from datetime import date
 
 import numpy as np
 
+# Suppress ALSA underrun / error messages from PyAudio internals
+try:
+    import ctypes
+    _asound = ctypes.cdll.LoadLibrary("libasound.so.2")
+    _HANDLER = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int,
+                                 ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)
+    _asound.snd_lib_error_set_handler(_HANDLER(lambda *_: None))
+    del ctypes, _asound, _HANDLER
+except Exception:
+    pass
+
 # ── paths ─────────────────────────────────────────────────────────────────────
 script_dir = Path(__file__).parent.resolve()
 base_dir = script_dir.parent
