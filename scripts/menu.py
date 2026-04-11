@@ -57,6 +57,7 @@ MENU = [
     ("List archive topics",     ["list"],         False, ""),
 
     # ── System ────────────────────────────────────────────────────────────────
+    ("Web UI (phone access)",   ["web-ui"],       False, ""),
     ("Update current events",   ["update"],       False, ""),
     ("Download general knowledge", ["download-general"], False, ""),
     ("Show help",               ["help"],         False, ""),
