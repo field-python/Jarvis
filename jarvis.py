@@ -181,6 +181,9 @@ def do_help():
   Jarvis download-general        Download general knowledge
   Jarvis download-culture        Download 70s rock, occult, Aleister Crowley topics
   Jarvis download-tech           Download Linux, WiFi, networking reference
+  Jarvis download-pop-culture    Download movies, TV, music, gaming, sports stars
+  Jarvis download-misc           Download law, finance, astronomy, mythology, philosophy,
+                                   psychology, true crime, military, automotive
   Jarvis diagnose                System diagnostics + Jarvis analysis
   Jarvis diagnose --wifi         WiFi-specific diagnostics
   Jarvis rebuild-index           Rebuild semantic search index
@@ -539,6 +542,10 @@ def main():
         run_py("download-culture-occult.py", *rest)
     elif cmd in ("download-tech", "download-linux"):
         run_py("download-tech-linux.py", *rest)
+    elif cmd in ("download-pop-culture", "download-pop"):
+        run_py("download-pop-culture.py", *rest)
+    elif cmd in ("download-misc", "download-extra"):
+        run_py("download-misc.py", *rest)
     elif cmd in ("diagnose", "diag", "diagnostics"):
         run_py("diagnose.py", *rest)
     elif cmd == "rebuild-index":

@@ -64,6 +64,8 @@ MENU = [
     ("Download general knowledge", ["download-general"], False, ""),
     ("Download culture & occult", ["download-culture"], False, ""),
     ("Download Linux & tech",   ["download-tech"], False, ""),
+    ("Download pop culture",    ["download-pop-culture"], False, ""),
+    ("Download misc knowledge", ["download-misc"], False, ""),
     ("Show help",               ["help"],         False, ""),
 ]
 
