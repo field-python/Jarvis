@@ -17,8 +17,9 @@ notes/lessons/
 notes/web-cache/
 
 # ── large archive content (users build their own) ─────────────────────────────
-notes/generated/
-notes/coding/
+# Keep only the .gitkeep placeholder — all note content stays local
+notes/*
+!notes/.gitkeep
 pages/
 
 # ── semantic search index (rebuilt locally) ───────────────────────────────────
