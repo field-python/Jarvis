@@ -184,6 +184,11 @@ def do_help():
   Jarvis download-pop-culture    Download movies, TV, music, gaming, sports stars
   Jarvis download-misc           Download law, finance, astronomy, mythology, philosophy,
                                    psychology, true crime, military, automotive
+  Jarvis download-law            Download comprehensive law: Black's Law Dictionary,
+                                   landmark cases, constitutional law, maritime, corporate,
+                                   foundational documents (Constitution, Magna Carta, etc.)
+  Jarvis legal "scenario"        Analyze a legal scenario, predict outcome, cite precedent
+  Jarvis legal rights            Plain-language breakdown of constitutional rights
   Jarvis diagnose                System diagnostics + Jarvis analysis
   Jarvis diagnose --wifi         WiFi-specific diagnostics
   Jarvis rebuild-index           Rebuild semantic search index
@@ -546,6 +551,10 @@ def main():
         run_py("download-pop-culture.py", *rest)
     elif cmd in ("download-misc", "download-extra"):
         run_py("download-misc.py", *rest)
+    elif cmd in ("download-law", "download-legal"):
+        run_py("download-law.py", *rest)
+    elif cmd in ("legal", "law", "rights"):
+        run_py("legal.py", *rest)
     elif cmd in ("diagnose", "diag", "diagnostics"):
         run_py("diagnose.py", *rest)
     elif cmd == "rebuild-index":

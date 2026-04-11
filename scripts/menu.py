@@ -66,7 +66,9 @@ MENU = [
     ("Download Linux & tech",   ["download-tech"], False, ""),
     ("Download pop culture",    ["download-pop-culture"], False, ""),
     ("Download misc knowledge", ["download-misc"], False, ""),
-    ("Show help",               ["help"],         False, ""),
+    ("Download law & legal ref",["download-law"],  False, ""),
+    ("Legal analysis / rights", ["legal"],         True,  "Legal scenario or question: "),
+    ("Show help",               ["help"],          False, ""),
 ]
 
 CYAN   = "\033[96m"
@@ -177,7 +179,7 @@ def draw_menu(items, selected):
 
 
 # Commands that loop — keep asking questions instead of returning to menu
-ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember"}
+ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember", "legal"}
 
 
 def _loop_prompt(prompt):
