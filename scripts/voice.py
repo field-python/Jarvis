@@ -113,7 +113,47 @@ WEB_TRIGGERS = [
 ]
 
 # ── helpers ───────────────────────────────────────────────────────────────────
-_mic_stream = None  # set by wake_word_loop; speak() pauses it during TTS
+_mic_stream     = None      # set by wake_word_loop; speak() pauses it during TTS
+_speaker_gender = "unknown" # updated per utterance; read by build_prompt
+
+
+def detect_voice_gender(wav_path: str) -> str:
+    """Estimate speaker gender from fundamental frequency.
+    Returns 'male', 'female', or 'unknown'."""
+    try:
+        import wave as _wave
+        with _wave.open(wav_path, "rb") as wf:
+            rate = wf.getframerate()
+            raw  = wf.readframes(wf.getnframes())
+        samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
+        n = len(samples)
+        if n < rate // 4:   # less than 0.25 s — too short to judge
+            return "unknown"
+        # Use the middle half to avoid leading/trailing silence
+        seg  = samples[n // 4 : 3 * n // 4]
+        seg -= seg.mean()
+        # Autocorrelation via FFT — fast and works on 16 kHz audio
+        fft_n = 2 ** int(np.ceil(np.log2(2 * len(seg))))
+        power = np.abs(np.fft.rfft(seg, n=fft_n)) ** 2
+        ac    = np.fft.irfft(power)[:len(seg)]
+        ac[0] = 0  # suppress DC component
+        lo = int(rate / 300)   # period for 300 Hz upper bound
+        hi = int(rate / 80)    # period for 80 Hz lower bound
+        if hi >= len(ac) or lo >= hi:
+            return "unknown"
+        peak = int(np.argmax(ac[lo:hi])) + lo
+        f0   = rate / peak
+        return "female" if f0 >= 165 else "male"
+    except Exception:
+        return "unknown"
+
+
+def _gender_note() -> str:
+    if _speaker_gender == "female":
+        return "The speaker is female — address them as 'ma'am', never 'sir'.\n"
+    if _speaker_gender == "male":
+        return "The speaker is male — address them as 'sir'.\n"
+    return ""
 
 
 def speak(text: str) -> None:
@@ -176,6 +216,7 @@ def build_prompt(question: str, history: list) -> str:
         f"Calm, composed, dry British wit at a measured level. Professionally warm. "
         f"You have opinions and share them when asked.\n\n"
         f"Today's date: {today}\n"
+        f"{_gender_note()}"
         f"You do not have internet access and cannot look up real-time data like weather or news. "
         f"If asked for real-time info, say so plainly without guessing.\n\n"
         f"{mem_section}"
@@ -234,6 +275,7 @@ def ask_jarvis_web(question: str, history: list) -> str:
         f"You are Jarvis — modeled after the AI from Iron Man. "
         f"Calm, composed, dry British wit at a measured level. Professionally warm.\n\n"
         f"Today's date: {today}\n"
+        f"{_gender_note()}"
         f"You do not have internet access and cannot look up real-time data like weather or news. "
         f"If asked for real-time info, say so plainly without guessing.\n\n"
         f"{mem_section}"
@@ -403,6 +445,9 @@ def continuous_loop(whisper_model, pa, history: list) -> None:
 
             tmp_wav = tempfile.mktemp(suffix=".wav", prefix="jarvis-convo-")
             chunks_to_wav(audio_chunks, tmp_wav)
+
+            global _speaker_gender
+            _speaker_gender = detect_voice_gender(tmp_wav)
 
             print("Transcribing...", end=" ", flush=True)
             question = transcribe(whisper_model, tmp_wav)
@@ -677,6 +722,9 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
 
             tmp_wav = tempfile.mktemp(suffix=".wav", prefix="jarvis-wake-")
             chunks_to_wav(audio_chunks, tmp_wav)
+
+            global _speaker_gender
+            _speaker_gender = detect_voice_gender(tmp_wav)
 
             print("Transcribing...", end=" ", flush=True)
             question = transcribe(whisper_model, tmp_wav)
