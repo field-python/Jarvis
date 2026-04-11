@@ -272,6 +272,9 @@ arg = sys.argv[1].lower().strip() if len(sys.argv) > 1 else ""
 if not arg or arg == "list":
     browse_interactive()
 
+elif arg == "--list":
+    list_recipes()
+
 elif arg in CATEGORIES:
     list_recipes(category_filter=arg)
 

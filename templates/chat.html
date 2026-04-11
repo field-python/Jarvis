@@ -11,6 +11,7 @@
             --bg:         #0d0d0d;
             --surface:    #161616;
             --surface2:   #1e1e1e;
+            --surface3:   #252525;
             --cyan:       #00d4ff;
             --cyan-dim:   #005f72;
             --text:       #e0e0e0;
@@ -39,13 +40,13 @@
         .header {
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 11px 16px;
+            padding: 11px 14px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 9px;
             flex-shrink: 0;
         }
-        .hd { /* pulsing dot */
+        .hd {
             width: 9px; height: 9px;
             border-radius: 50%;
             background: var(--cyan);
@@ -53,22 +54,29 @@
             flex-shrink: 0;
             animation: pulse 2.5s ease-in-out infinite;
         }
-        @keyframes pulse {
-            0%,100% { opacity: 1; } 50% { opacity: 0.35; }
-        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
         .ht { font-size: 17px; font-weight: 800; color: var(--cyan); letter-spacing: 3px; }
-        .hl { font-size: 12px; color: var(--dim); margin-left: 2px; }
-        .lock-btn {
-            margin-left: auto;
+        .hl { font-size: 12px; color: var(--dim); margin-left: 2px; flex: 1; }
+
+        .hdr-btn {
             background: none;
             border: 1px solid var(--border);
             color: var(--dim);
             font-size: 12px;
-            padding: 4px 11px;
+            padding: 5px 11px;
             border-radius: 12px;
             cursor: pointer;
             text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
+        .hdr-btn.menu-icon {
+            font-size: 17px;
+            padding: 4px 10px;
+            border-color: var(--cyan-dim);
+            color: var(--cyan);
+        }
+        .hdr-btn:not(.menu-icon):not([href]) { margin-left: auto; }
 
         /* ── Mode tabs ──────────────────────────────────────────────────────── */
         .modes {
@@ -81,9 +89,8 @@
         }
         .modes::-webkit-scrollbar { display: none; }
         .mbt {
-            flex: 1;
-            min-width: 68px;
-            padding: 9px 6px;
+            flex: 0 0 auto;
+            padding: 9px 18px;
             background: none;
             border: none;
             border-bottom: 2px solid transparent;
@@ -107,79 +114,50 @@
         }
 
         /* ── Message groups ─────────────────────────────────────────────────── */
-        .mg {
-            display: flex;
-            flex-direction: column;
-            max-width: 90%;
-        }
+        .mg { display: flex; flex-direction: column; max-width: 92%; }
         .mg.user   { align-self: flex-end;   align-items: flex-end; }
         .mg.jarvis { align-self: flex-start; align-items: flex-start; }
-
         .ml { font-size: 11px; color: var(--dim); margin-bottom: 4px; padding: 0 4px; }
-
         .bubble {
             padding: 10px 14px;
             border-radius: 18px;
             line-height: 1.55;
             word-break: break-word;
         }
-        .mg.user   .bubble { background: var(--user-bg);   border-bottom-right-radius: 5px; }
+        .mg.user   .bubble { background: var(--user-bg); border-bottom-right-radius: 5px; }
         .mg.jarvis .bubble { background: var(--jarvis-bg); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
 
-        /* Markdown inside bubble */
+        /* Markdown */
         .bubble h1,.bubble h2,.bubble h3 { color: var(--cyan); margin: 8px 0 4px; font-size: 14px; font-weight: 700; }
         .bubble strong { color: #fff; font-weight: 700; }
         .bubble em     { color: #bbb; font-style: italic; }
-        .bubble code   {
-            background: #252525; color: #7ec8e3;
-            padding: 1px 5px; border-radius: 4px;
-            font-family: 'SF Mono','Fira Code',monospace; font-size: 13px;
-        }
-        .bubble pre {
-            background: #1a1a1a; border: 1px solid var(--border);
-            border-radius: 8px; padding: 10px;
-            overflow-x: auto; margin: 6px 0;
-        }
+        .bubble code   { background: #252525; color: #7ec8e3; padding: 1px 5px; border-radius: 4px; font-family: 'SF Mono','Fira Code',monospace; font-size: 13px; }
+        .bubble pre    { background: #1a1a1a; border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 6px 0; }
         .bubble pre code { background: none; padding: 0; }
         .bubble ul,.bubble ol { padding-left: 18px; margin: 4px 0; }
-        .bubble li  { margin: 2px 0; }
-        .bubble p   { margin: 4px 0; }
+        .bubble li { margin: 2px 0; }
+        .bubble p  { margin: 4px 0; }
         .bubble p:first-child { margin-top: 0; }
         .bubble p:last-child  { margin-bottom: 0; }
 
-        /* Streaming cursor */
-        .streaming::after {
-            content: '▋'; color: var(--cyan);
-            animation: blink .7s step-end infinite;
-        }
+        .streaming::after { content: '▋'; color: var(--cyan); animation: blink .7s step-end infinite; }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-        /* Suggestion chips */
+        /* Chips */
         .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .chip {
-            background: var(--surface2);
-            border: 1px solid var(--cyan-dim);
-            color: var(--cyan);
-            font-size: 12px;
-            padding: 5px 11px;
-            border-radius: 14px;
-            cursor: pointer;
-            text-align: left;
+            background: var(--surface2); border: 1px solid var(--cyan-dim);
+            color: var(--cyan); font-size: 12px; padding: 5px 11px;
+            border-radius: 14px; cursor: pointer; text-align: left;
             transition: background .1s;
         }
         .chip:active { background: var(--user-bg); }
 
-        /* Welcome screen */
+        /* Welcome */
         .welcome {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 24px;
-            color: var(--dim);
-            gap: 10px;
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 24px; color: var(--dim); gap: 10px;
             pointer-events: none;
         }
         .wt { font-size: 34px; font-weight: 800; color: var(--cyan); letter-spacing: 6px; }
@@ -190,47 +168,115 @@
             background: var(--surface);
             border-top: 1px solid var(--border);
             padding: 10px 12px;
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
             display: flex;
             gap: 8px;
             align-items: flex-end;
             flex-shrink: 0;
         }
         .iw {
-            flex: 1;
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 22px;
-            padding: 9px 14px;
-            transition: border-color .15s;
+            flex: 1; background: var(--surface2);
+            border: 1px solid var(--border); border-radius: 22px;
+            padding: 9px 14px; transition: border-color .15s;
         }
         .iw:focus-within { border-color: var(--cyan-dim); }
         textarea {
-            width: 100%;
-            background: none;
-            border: none;
-            outline: none;
-            color: var(--text);
-            font-size: 15px;
-            font-family: inherit;
-            resize: none;
-            max-height: 120px;
-            line-height: 1.4;
-            display: block;
+            width: 100%; background: none; border: none; outline: none;
+            color: var(--text); font-size: 15px; font-family: inherit;
+            resize: none; max-height: 120px; line-height: 1.4; display: block;
         }
         textarea::placeholder { color: var(--dim); }
-
         .sb {
-            width: 42px; height: 42px;
-            background: var(--cyan);
-            border: none; border-radius: 50%;
-            cursor: pointer;
+            width: 42px; height: 42px; background: var(--cyan);
+            border: none; border-radius: 50%; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            transition: opacity .15s, transform .1s;
+            flex-shrink: 0; transition: opacity .15s, transform .1s;
         }
         .sb:active   { transform: scale(0.9); }
         .sb:disabled { opacity: 0.3; cursor: default; }
         .sb svg { width: 19px; height: 19px; fill: #000; }
+
+        /* ── Voice buttons ──────────────────────────────────────────────────── */
+        .mic-btn {
+            width: 42px; height: 42px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            font-size: 19px;
+            transition: background .15s, border-color .15s, transform .1s;
+        }
+        .mic-btn:active  { transform: scale(0.9); }
+        .mic-btn.on {
+            background: #3a0010;
+            border-color: #ff4466;
+            animation: mic-pulse 1s ease-in-out infinite;
+        }
+        @keyframes mic-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(255,68,102,0.4); }
+            50%     { box-shadow: 0 0 0 8px rgba(255,68,102,0); }
+        }
+        .tts-btn {
+            background: none; border: none;
+            font-size: 16px; cursor: pointer;
+            padding: 4px 8px; border-radius: 8px;
+            opacity: 0.45; transition: opacity .15s;
+            flex-shrink: 0;
+        }
+        .tts-btn.on { opacity: 1; }
+
+        /* ── Menu Drawer ────────────────────────────────────────────────────── */
+        .dbg {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65); z-index: 20;
+        }
+        .dbg.open { display: block; }
+
+        .drawer {
+            position: fixed; left: 0; right: 0; bottom: -100%;
+            background: var(--surface);
+            border-radius: 20px 20px 0 0;
+            border-top: 1px solid var(--border);
+            z-index: 21;
+            max-height: 82vh;
+            overflow-y: auto;
+            transition: bottom 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+        }
+        .drawer.open { bottom: 0; }
+
+        .dhandle {
+            width: 40px; height: 4px; border-radius: 2px;
+            background: var(--border); margin: 12px auto 4px;
+        }
+        .dtitle {
+            font-size: 13px; color: var(--dim); letter-spacing: 1px;
+            text-transform: uppercase; padding: 8px 18px 6px;
+        }
+        .dsec { padding: 6px 14px 4px; }
+        .dsec-label {
+            font-size: 10px; color: var(--dim); letter-spacing: 1px;
+            text-transform: uppercase; padding: 8px 4px 6px;
+        }
+        .dsec-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .di {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 12px; padding: 12px 10px;
+            cursor: pointer; text-align: left;
+            display: flex; align-items: center; gap: 9px;
+            transition: background .12s, border-color .12s;
+            color: var(--text);
+        }
+        .di:active { background: var(--surface3); border-color: var(--cyan-dim); }
+        .di-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+        .di-label { font-size: 13px; line-height: 1.3; }
+        .di.wide { grid-column: 1 / -1; }
     </style>
 </head>
 <body>
@@ -239,23 +285,25 @@
 <div class="header">
     <div class="hd"></div>
     <span class="ht">JARVIS</span>
-    {% if location %}<span class="hl">{{ location }}</span>{% endif %}
-    <a class="lock-btn" href="/logout">Lock</a>
+    {% if location %}<span class="hl">{{ location }}</span>{% else %}<span class="hl"></span>{% endif %}
+    <button class="hdr-btn menu-icon" id="menuBtn" onclick="openDrawer()">⊞</button>
+    <button class="tts-btn" id="ttsBtn" onclick="toggleTTS()" title="Toggle voice response">🔊</button>
+    <a class="hdr-btn" href="/logout">Lock</a>
 </div>
 
 <!-- Mode tabs -->
 <div class="modes">
-    <button class="mbt on"  data-mode="normal">Ask</button>
-    <button class="mbt"     data-mode="brief">Brief</button>
-    <button class="mbt"     data-mode="detailed">Detailed</button>
-    <button class="mbt"     data-mode="cite">Cite Sources</button>
+    <button class="mbt on"  data-cmd="ask">Ask</button>
+    <button class="mbt"     data-cmd="brief">Brief</button>
+    <button class="mbt"     data-cmd="detailed">Detailed</button>
+    <button class="mbt"     data-cmd="cite">Cite Sources</button>
 </div>
 
 <!-- Chat -->
 <div class="chat" id="chat">
     <div class="welcome" id="welcome">
         <div class="wt">JARVIS</div>
-        <div class="ws">Your offline AI assistant.<br>Ask me anything.</div>
+        <div class="ws">Your offline AI assistant.<br>Ask anything or tap ⊞ for all commands.</div>
     </div>
 </div>
 
@@ -264,27 +312,146 @@
     <div class="iw">
         <textarea id="inp" placeholder="Ask Jarvis anything..." rows="1"></textarea>
     </div>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Voice input">🎤</button>
     <button class="sb" id="sb" onclick="send()">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
     </button>
 </div>
 
+<!-- Drawer backdrop -->
+<div class="dbg" id="dbg" onclick="closeDrawer()"></div>
+
+<!-- Drawer -->
+<div class="drawer" id="drawer">
+    <div class="dhandle"></div>
+    <div class="dtitle">Commands</div>
+
+    <div class="dsec">
+        <div class="dsec-label">Ask</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="ask" data-input="true" data-ph="Ask anything..." onclick="pickCmd(this)">
+                <span class="di-icon">💬</span><span class="di-label">Ask</span>
+            </button>
+            <button class="di" data-cmd="brief" data-input="true" data-ph="Question (brief answer)..." onclick="pickCmd(this)">
+                <span class="di-icon">⚡</span><span class="di-label">Brief Answer</span>
+            </button>
+            <button class="di" data-cmd="detailed" data-input="true" data-ph="Question (detailed answer)..." onclick="pickCmd(this)">
+                <span class="di-icon">📖</span><span class="di-label">Detailed Answer</span>
+            </button>
+            <button class="di" data-cmd="cite" data-input="true" data-ph="Question (with citations)..." onclick="pickCmd(this)">
+                <span class="di-icon">📚</span><span class="di-label">Cite Sources</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Reference &amp; Search</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="firstaid" data-input="true" data-ph="First aid topic (e.g. hypothermia)..." onclick="pickCmd(this)">
+                <span class="di-icon">🩹</span><span class="di-label">First Aid</span>
+            </button>
+            <button class="di" data-cmd="search" data-input="true" data-ph="Search your archive..." onclick="pickCmd(this)">
+                <span class="di-icon">🔍</span><span class="di-label">Search Archive</span>
+            </button>
+            <button class="di" data-cmd="find" data-input="true" data-ph="Semantic find topic..." onclick="pickCmd(this)">
+                <span class="di-icon">🧠</span><span class="di-label">Semantic Find</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Notes &amp; Memory</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="note" data-input="true" data-ph="Note to save..." onclick="pickCmd(this)">
+                <span class="di-icon">📝</span><span class="di-label">Save a Note</span>
+            </button>
+            <button class="di" data-cmd="notes" data-input="false" onclick="pickCmd(this)">
+                <span class="di-icon">📋</span><span class="di-label">Today's Notes</span>
+            </button>
+            <button class="di wide" data-cmd="remember" data-input="true" data-ph="Tell Jarvis about yourself..." onclick="pickCmd(this)">
+                <span class="di-icon">🧬</span><span class="di-label">Tell Jarvis About Yourself</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Recipes</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="recipe-list" data-input="false" onclick="pickCmd(this)">
+                <span class="di-icon">🍳</span><span class="di-label">Browse Recipes</span>
+            </button>
+            <button class="di" data-cmd="recipe-suggest" data-input="true" data-ph="What do you have on hand..." onclick="pickCmd(this)">
+                <span class="di-icon">🥘</span><span class="di-label">From Ingredients</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Daily Briefings</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="weather" data-input="false" onclick="pickCmd(this)">
+                <span class="di-icon">🌤</span><span class="di-label">Weather</span>
+            </button>
+            <button class="di" data-cmd="news" data-input="false" onclick="pickCmd(this)">
+                <span class="di-icon">📰</span><span class="di-label">News Briefing</span>
+            </button>
+            <button class="di" data-cmd="daily" data-input="false" onclick="pickCmd(this)">
+                <span class="di-icon">🌅</span><span class="di-label">Morning Briefing</span>
+            </button>
+            <button class="di" data-cmd="skill" data-input="false" onclick="pickCmd(this)">
+                <span class="di-icon">🎯</span><span class="di-label">Skill of the Day</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 'use strict';
 
-let mode = 'normal';
-let busy = false;
+let activeCmd = 'ask';
+let busy      = false;
 
-// Mode buttons
+// ── Mode tabs ─────────────────────────────────────────────────────────────────
 document.querySelectorAll('.mbt').forEach(b => {
     b.onclick = () => {
         document.querySelectorAll('.mbt').forEach(x => x.classList.remove('on'));
         b.classList.add('on');
-        mode = b.dataset.mode;
+        activeCmd = b.dataset.cmd;
+        ta.placeholder = 'Ask Jarvis anything...';
+        ta.focus();
     };
 });
 
-// Auto-resize textarea
+// ── Drawer ────────────────────────────────────────────────────────────────────
+function openDrawer() {
+    document.getElementById('dbg').classList.add('open');
+    document.getElementById('drawer').classList.add('open');
+}
+function closeDrawer() {
+    document.getElementById('dbg').classList.remove('open');
+    document.getElementById('drawer').classList.remove('open');
+}
+
+function pickCmd(el) {
+    const cmd     = el.dataset.cmd;
+    const needsIn = el.dataset.input === 'true';
+    const ph      = el.dataset.ph || 'Enter input...';
+    closeDrawer();
+
+    if (needsIn) {
+        activeCmd = cmd;
+        // Sync tab highlight if it matches a tab
+        document.querySelectorAll('.mbt').forEach(b => {
+            b.classList.toggle('on', b.dataset.cmd === cmd);
+        });
+        ta.placeholder = ph;
+        ta.focus();
+    } else {
+        runCmd(cmd, '');
+    }
+}
+
+// ── Textarea ──────────────────────────────────────────────────────────────────
 const ta = document.getElementById('inp');
 ta.addEventListener('input', () => {
     ta.style.height = 'auto';
@@ -302,45 +469,28 @@ function scrollEnd(smooth) {
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 function md(raw) {
-    // Escape HTML first
-    let s = raw
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // Fenced code blocks (protect from further processing)
+    let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const blocks = [];
     s = s.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_, c) => {
         blocks.push(`<pre><code>${c.trim()}</code></pre>`);
         return `\x00BLOCK${blocks.length - 1}\x00`;
     });
-
-    // Inline code
     s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-    // Bold / italic
     s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
-    // Headers
     s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     s = s.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
     s = s.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
-    // Bullet / numbered lists → li
-    s = s.replace(/^[ \t]*[-*•] (.+)$/gm,     '<li>$1</li>');
-    s = s.replace(/^[ \t]*\d+\.\s+(.+)$/gm,   '<li>$1</li>');
-    // Wrap consecutive li in ul
+    s = s.replace(/^[ \t]*[-*•] (.+)$/gm,   '<li>$1</li>');
+    s = s.replace(/^[ \t]*\d+\.\s+(.+)$/gm, '<li>$1</li>');
     s = s.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
-    // Paragraphs
     s = s.replace(/\n\n+/g, '</p><p>');
-    s = s.replace(/\n/g,    '<br>');
+    s = s.replace(/\n/g, '<br>');
     s = `<p>${s}</p>`;
-
-    // Restore code blocks
     s = s.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => blocks[i]);
-
     return s;
 }
 
-// ── Split off "Next questions:" section ──────────────────────────────────────
 function splitNext(raw) {
     const idx = raw.search(/\nNext questions?:/i);
     if (idx === -1) return { body: raw, chips: [] };
@@ -350,20 +500,19 @@ function splitNext(raw) {
     return { body, chips };
 }
 
-// ── Add a message bubble ──────────────────────────────────────────────────────
+// ── Message helpers ───────────────────────────────────────────────────────────
 function addMsg(role, content, isHtml) {
     const w = document.getElementById('welcome');
     if (w) w.remove();
-
     const g = document.createElement('div');
     g.className = `mg ${role}`;
+    const lbl = document.createElement('div');
+    lbl.className = 'ml';
+    lbl.textContent = role === 'user' ? 'You' : 'Jarvis';
     const b = document.createElement('div');
     b.className = 'bubble';
     if (isHtml) b.innerHTML = content;
     else        b.textContent = content;
-    const lbl = document.createElement('div');
-    lbl.className = 'ml';
-    lbl.textContent = role === 'user' ? 'You' : 'Jarvis';
     g.appendChild(lbl);
     g.appendChild(b);
     chat.appendChild(g);
@@ -371,12 +520,11 @@ function addMsg(role, content, isHtml) {
     return { group: g, bubble: b };
 }
 
-// ── Finalize a streaming bubble ───────────────────────────────────────────────
 function finalize(group, bubble, raw) {
     bubble.classList.remove('streaming');
     const { body, chips } = splitNext(raw);
     bubble.innerHTML = md(body);
-
+    speak(body);
     if (chips.length) {
         const wrap = document.createElement('div');
         wrap.className = 'chips';
@@ -392,25 +540,14 @@ function finalize(group, bubble, raw) {
     scrollEnd(true);
 }
 
-// ── Send ──────────────────────────────────────────────────────────────────────
-async function send(override) {
-    const q = (override || ta.value).trim();
-    if (!q || busy) return;
-
-    busy = true;
-    document.getElementById('sb').disabled = true;
-    if (!override) { ta.value = ''; ta.style.height = 'auto'; }
-
-    addMsg('user', q, false);
-    const { group, bubble } = addMsg('jarvis', '', false);
-    bubble.classList.add('streaming');
+// ── Stream from /run ──────────────────────────────────────────────────────────
+async function streamRun(cmd, input, group, bubble) {
     let raw = '';
-
     try {
-        const res = await fetch('/ask', {
+        const res = await fetch('/run', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ question: q, mode })
+            body:    JSON.stringify({ cmd, input })
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
 
@@ -421,34 +558,124 @@ async function send(override) {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             buf += decoder.decode(value, { stream: true });
             const lines = buf.split('\n');
-            buf = lines.pop(); // keep incomplete line
-
+            buf = lines.pop();
             for (const line of lines) {
                 if (!line.startsWith('data: ')) continue;
                 const payload = line.slice(6).trim();
                 if (payload === '[DONE]') { finalize(group, bubble, raw); break; }
                 try {
-                    raw += JSON.parse(payload).c;
+                    const d = JSON.parse(payload);
+                    raw += d.t ?? d.c ?? '';
                     bubble.textContent = raw;
                     scrollEnd(false);
                 } catch (_) {}
             }
         }
-
-        // In case [DONE] didn't arrive cleanly
         if (bubble.classList.contains('streaming')) finalize(group, bubble, raw);
-
     } catch (err) {
         bubble.classList.remove('streaming');
         bubble.textContent = 'Connection error — is Jarvis running?';
     }
+}
+
+// ── Run a command (no user input bubble for system cmds) ──────────────────────
+async function runCmd(cmd, input) {
+    if (busy) return;
+    busy = true;
+    document.getElementById('sb').disabled = true;
+
+    // Only show a user bubble if there's actual text input
+    if (input) addMsg('user', input, false);
+
+    const { group, bubble } = addMsg('jarvis', '', false);
+    bubble.classList.add('streaming');
+
+    await streamRun(cmd, input, group, bubble);
 
     busy = false;
     document.getElementById('sb').disabled = false;
     ta.focus();
+}
+
+// ── Send (from textarea) ──────────────────────────────────────────────────────
+function send(override) {
+    const q = (override || ta.value).trim();
+    if (!q || busy) return;
+    if (!override) { ta.value = ''; ta.style.height = 'auto'; }
+    runCmd(activeCmd, q);
+}
+
+// ── Voice input (Speech Recognition) ─────────────────────────────────────────
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recog     = null;
+let listening = false;
+const micBtn  = document.getElementById('micBtn');
+
+function toggleMic() {
+    if (!SR) {
+        micBtn.textContent = '✗';
+        setTimeout(() => micBtn.textContent = '🎤', 1500);
+        return;
+    }
+    if (listening) {
+        recog.stop();
+        return;
+    }
+    recog = new SR();
+    recog.continuous      = false;
+    recog.interimResults  = false;
+    recog.lang            = 'en-US';
+
+    recog.onstart = () => {
+        listening = true;
+        micBtn.classList.add('on');
+        micBtn.textContent = '🎙';
+    };
+    recog.onresult = e => {
+        const text = e.results[0][0].transcript.trim();
+        if (text) {
+            ta.value = text;
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+            if (!busy) send();
+        }
+    };
+    recog.onerror = () => {};
+    recog.onend   = () => {
+        listening = false;
+        micBtn.classList.remove('on');
+        micBtn.textContent = '🎤';
+    };
+    recog.start();
+}
+
+// ── Voice output (Text-to-Speech) ─────────────────────────────────────────────
+let ttsOn = false;
+const ttsBtn = document.getElementById('ttsBtn');
+
+function toggleTTS() {
+    ttsOn = !ttsOn;
+    ttsBtn.classList.toggle('on', ttsOn);
+    if (!ttsOn) window.speechSynthesis.cancel();
+}
+
+function speak(text) {
+    if (!ttsOn || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    // Strip markdown symbols before speaking
+    const clean = text
+        .replace(/```[\s\S]*?```/g, 'code block.')
+        .replace(/`[^`]+`/g, '')
+        .replace(/[#*_~\[\]]/g, '')
+        .replace(/\n{2,}/g, '. ')
+        .replace(/\n/g, ' ')
+        .trim();
+    const utt  = new SpeechSynthesisUtterance(clean);
+    utt.rate   = 1.05;
+    utt.pitch  = 1.0;
+    window.speechSynthesis.speak(utt);
 }
 </script>
 </body>

@@ -12,7 +12,7 @@ import secrets
 import socket
 import subprocess
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
@@ -27,9 +27,30 @@ except ImportError:
 BASE    = Path(__file__).parent.parent.resolve()
 SCRIPTS = BASE / "scripts"
 CONFIG  = BASE / "config"
+NOTES   = BASE / "notes"
+MEMORY  = BASE / "memory"
 
 venv   = os.environ.get("JARVIS_VENV", str(Path.home() / ".jarvis-venv"))
 PYTHON = str(Path(venv) / "bin" / "python")
+
+# ── command map ───────────────────────────────────────────────────────────────
+# key: (script_name, extra_args_before_input, env_overrides)
+COMMANDS = {
+    "ask":            ("ask.py",              [],            {}),
+    "brief":          ("ask.py",              [],            {"JARVIS_MODE": "brief"}),
+    "detailed":       ("ask.py",              [],            {"JARVIS_MODE": "detailed"}),
+    "cite":           ("ask.py",              [],            {"JARVIS_MODE": "cite"}),
+    "firstaid":       ("firstaid.py",         [],            {}),
+    "search":         ("search.py",           [],            {}),
+    "find":           ("semantic-search.py",  [],            {}),
+    "weather":        ("weather.py",          [],            {}),
+    "news":           ("news.py",             [],            {}),
+    "daily":          ("daily.py",            [],            {}),
+    "skill":          ("skill.py",            [],            {}),
+    "note":           ("note.py",             [],            {}),
+    "recipe-list":    ("recipe.py",           ["--list"],    {}),
+    "recipe-suggest": ("recipe.py",           ["suggest"],   {}),
+}
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -76,6 +97,30 @@ def read_conf(name, default=""):
     return default
 
 
+def _sse(text):
+    """Yield SSE events for a text string in 16-char chunks."""
+    for i in range(0, len(text), 16):
+        chunk = text[i:i + 16]
+        yield f"data: {json.dumps({'t': chunk})}\n\n"
+
+
+def _sse_done():
+    yield "data: [DONE]\n\n"
+
+
+def _groq_env(env):
+    """Inject Groq credentials into env dict if groq-mode is active."""
+    groq_conf = CONFIG / "groq.conf"
+    groq_mode = CONFIG / "groq-mode"
+    if groq_mode.exists() and groq_conf.exists():
+        key = groq_conf.read_text().strip()
+        if key:
+            env["JARVIS_BACKEND"] = "groq"
+            env["JARVIS_MODEL"]   = "llama-3.3-70b-versatile"
+            env["GROQ_API_KEY"]   = key
+    return env
+
+
 # ── app ───────────────────────────────────────────────────────────────────────
 
 app = Flask(__name__, template_folder=str(BASE / "templates"))
@@ -114,35 +159,84 @@ def logout():
     return redirect(url_for("login"))
 
 
-@app.route("/ask", methods=["POST"])
-def ask():
+# ── inline command handlers ───────────────────────────────────────────────────
+
+def _stream_notes():
+    notes_dir  = NOTES / "personal-notes"
+    today      = datetime.now().strftime("%Y-%m-%d")
+    today_file = notes_dir / f"{today}.md"
+
+    if today_file.exists():
+        text  = today_file.read_text(encoding="utf-8")
+        lines = [l for l in text.splitlines() if not l.startswith("#")]
+        out   = "\n".join(lines).strip()
+        yield from _sse(out if out else "No notes written today yet.")
+    else:
+        recent = sorted(notes_dir.glob("*.md"), reverse=True)[:3] if notes_dir.exists() else []
+        if recent:
+            lines = [f"No notes for today. Recent dates:"]
+            for f in recent:
+                lines.append(f"  {f.stem}")
+            yield from _sse("\n".join(lines))
+        else:
+            yield from _sse("No notes yet. Use Save a Note to start.")
+    yield from _sse_done()
+
+
+def _stream_remember(inp):
+    mem = MEMORY / "user-memory.md"
+    mem.parent.mkdir(parents=True, exist_ok=True)
+    with open(mem, "a", encoding="utf-8") as f:
+        f.write(f"- [{datetime.now().strftime('%Y-%m-%d')}] {inp}\n")
+    yield from _sse("Got it — I'll remember that.")
+    yield from _sse_done()
+
+
+# ── /run endpoint ─────────────────────────────────────────────────────────────
+
+@app.route("/run", methods=["POST"])
+def run():
     if not session.get("authenticated"):
         return Response("Unauthorized", status=401)
 
-    data     = request.get_json(silent=True) or {}
-    question = data.get("question", "").strip()
-    mode     = data.get("mode", "normal")
+    data = request.get_json(silent=True) or {}
+    cmd  = data.get("cmd", "ask").strip()
+    inp  = data.get("input", "").strip()
 
-    if not question:
-        return Response("No question provided", status=400)
+    # ── inline handlers ───────────────────────────────────────────────────────
+    if cmd == "notes":
+        return Response(_stream_notes(), mimetype="text/event-stream",
+                        headers={"Cache-Control": "no-cache",
+                                 "X-Accel-Buffering": "no",
+                                 "Connection": "keep-alive"})
+
+    if cmd == "remember":
+        if not inp:
+            return Response("No input provided", status=400)
+        return Response(_stream_remember(inp), mimetype="text/event-stream",
+                        headers={"Cache-Control": "no-cache",
+                                 "X-Accel-Buffering": "no",
+                                 "Connection": "keep-alive"})
+
+    # ── script-based handlers ─────────────────────────────────────────────────
+    if cmd not in COMMANDS:
+        return Response(f"Unknown command: {cmd}", status=400)
+
+    script, extra_args, env_overrides = COMMANDS[cmd]
 
     env = dict(os.environ)
-    env["JARVIS_MODE"]  = mode
     env["JARVIS_THINK"] = "0"
+    env.update(env_overrides)
+    _groq_env(env)
 
-    # Respect groq mode if configured
-    groq_conf = CONFIG / "groq.conf"
-    groq_mode = CONFIG / "groq-mode"
-    if groq_mode.exists() and groq_conf.exists():
-        key = groq_conf.read_text().strip()
-        if key:
-            env["JARVIS_BACKEND"] = "groq"
-            env["JARVIS_MODEL"]   = "llama-3.3-70b-versatile"
-            env["GROQ_API_KEY"]   = key
+    # Build args: script + extra_args + optional input
+    cmd_args = [PYTHON, str(SCRIPTS / script)] + extra_args
+    if inp:
+        cmd_args.append(inp)
 
     def stream():
         proc = subprocess.Popen(
-            [PYTHON, str(SCRIPTS / "ask.py"), question],
+            cmd_args,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -150,8 +244,11 @@ def ask():
             bufsize=0,
         )
         try:
-            for char in iter(lambda: proc.stdout.read(1), ""):
-                yield f"data: {json.dumps({'c': char})}\n\n"
+            while True:
+                chunk = proc.stdout.read(16)
+                if not chunk:
+                    break
+                yield f"data: {json.dumps({'t': chunk})}\n\n"
         finally:
             proc.stdout.close()
             proc.kill()
@@ -162,11 +259,54 @@ def ask():
         stream(),
         mimetype="text/event-stream",
         headers={
-            "Cache-Control":    "no-cache",
+            "Cache-Control":     "no-cache",
             "X-Accel-Buffering": "no",
-            "Connection":       "keep-alive",
+            "Connection":        "keep-alive",
         },
     )
+
+
+# ── legacy /ask endpoint (kept for compatibility) ─────────────────────────────
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    if not session.get("authenticated"):
+        return Response("Unauthorized", status=401)
+    data     = request.get_json(silent=True) or {}
+    question = data.get("question", "").strip()
+    mode     = data.get("mode", "ask").strip()
+    if not question:
+        return Response("No question provided", status=400)
+    # Forward to /run logic
+    request._cached_json = ({"cmd": mode, "input": question}, True)
+    # Just call run() directly isn't possible mid-request; rebuild inline
+    script, extra_args, env_overrides = COMMANDS.get(mode, COMMANDS["ask"])
+    env = dict(os.environ)
+    env["JARVIS_THINK"] = "0"
+    env.update(env_overrides)
+    _groq_env(env)
+    cmd_args = [PYTHON, str(SCRIPTS / script)] + extra_args + [question]
+
+    def stream():
+        proc = subprocess.Popen(cmd_args, stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, text=True,
+                                env=env, bufsize=0)
+        try:
+            while True:
+                chunk = proc.stdout.read(16)
+                if not chunk:
+                    break
+                yield f"data: {json.dumps({'t': chunk})}\n\n"
+        finally:
+            proc.stdout.close()
+            proc.kill()
+            proc.wait()
+        yield "data: [DONE]\n\n"
+
+    return Response(stream(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache",
+                             "X-Accel-Buffering": "no",
+                             "Connection": "keep-alive"})
 
 
 # ── entry point ───────────────────────────────────────────────────────────────
