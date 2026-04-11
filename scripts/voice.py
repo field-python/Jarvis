@@ -113,8 +113,24 @@ WEB_TRIGGERS = [
 ]
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+_mic_stream = None  # set by wake_word_loop; speak() pauses it during TTS
+
+
 def speak(text: str) -> None:
+    global _mic_stream
+    paused = False
+    if _mic_stream is not None:
+        try:
+            _mic_stream.stop_stream()
+            paused = True
+        except Exception:
+            pass
     subprocess.run(["bash", tts_script, text], capture_output=True)
+    if paused:
+        try:
+            _mic_stream.start_stream()
+        except Exception:
+            pass
 
 
 def has_internet() -> bool:
@@ -491,6 +507,7 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     speak("Jarvis online. Say hey Jarvis to speak.")
 
+    global _mic_stream
     stream = pa.open(
         rate=RATE,
         channels=CHANNELS,
@@ -498,6 +515,7 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
         input=True,
         frames_per_buffer=CHUNK,
     )
+    _mic_stream = stream  # speak() will pause this during TTS playback
 
     # Drain mic + reset model after startup TTS so it can't self-trigger
     _drain_stream(stream, seconds=2.0)
@@ -718,6 +736,7 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
             print('\n[Listening for "Hey Jarvis"...]')
 
     finally:
+        _mic_stream = None
         stream.stop_stream()
         stream.close()
 
