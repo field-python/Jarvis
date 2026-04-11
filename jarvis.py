@@ -144,6 +144,7 @@ def do_help():
   CONVERSATION
   Jarvis hello / chat            Start a conversation (remembers context)
   Jarvis voice                   Wake-word voice mode (Hey Jarvis)
+  Jarvis convo                   Continuous voice mode (no wake word needed)
   Jarvis cloud-voice             Voice mode via cloud RTX 4090
 
   SEARCH
@@ -490,6 +491,8 @@ def main():
         do_list()
     elif cmd == "voice":
         run_py("voice.py")
+    elif cmd in ("convo", "conversation"):
+        run_py("voice.py", "--convo")
     elif cmd == "install-voice":
         subprocess.run(["bash", str(SCRIPTS / "install-voice.sh")])
     elif cmd in ("chat", "hello"):

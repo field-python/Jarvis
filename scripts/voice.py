@@ -352,6 +352,113 @@ def ask_jarvis_streaming(question: str, history: list) -> str:
     return full_text.strip()
 
 
+def continuous_loop(whisper_model, pa, history: list) -> None:
+    """Continuous conversation mode — listens immediately after every response."""
+    import pyaudio
+
+    def cleanup(sig=None, frame=None):
+        print("\nJarvis voice mode off.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT,  cleanup)
+    signal.signal(signal.SIGTERM, cleanup)
+
+    global _mic_stream
+    stream = pa.open(
+        rate=RATE, channels=CHANNELS,
+        format=pyaudio.paInt16,
+        input=True, frames_per_buffer=CHUNK,
+    )
+    _mic_stream = stream
+
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("  Jarvis Voice Mode  |  Continuous")
+    print('  Speak freely  |  "Goodbye" or Ctrl+C → exit')
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    speak("Jarvis online. Continuous mode. I'm listening.")
+    _drain_stream(stream, seconds=1.5)
+
+    try:
+        while True:
+            print("\n[Listening...] Speak now.", flush=True)
+
+            audio_chunks = []
+            silence_count = 0
+
+            for _ in range(MAX_RECORD_CHUNKS):
+                chunk = stream.read(CHUNK, exception_on_overflow=False)
+                audio_chunks.append(chunk)
+
+                if rms(chunk) < SILENCE_RMS_THRESHOLD:
+                    silence_count += 1
+                    if silence_count >= SILENCE_CHUNKS:
+                        break
+                else:
+                    silence_count = 0
+
+            # Skip if no real speech (just ambient noise)
+            speech_chunks = sum(1 for c in audio_chunks if rms(c) >= SILENCE_RMS_THRESHOLD)
+            if speech_chunks < 3:
+                continue
+
+            tmp_wav = tempfile.mktemp(suffix=".wav", prefix="jarvis-convo-")
+            chunks_to_wav(audio_chunks, tmp_wav)
+
+            print("Transcribing...", end=" ", flush=True)
+            question = transcribe(whisper_model, tmp_wav)
+            try:
+                os.unlink(tmp_wav)
+            except OSError:
+                pass
+
+            if not question:
+                print("Couldn't make that out.")
+                continue
+
+            print(f"\nYou: {question}")
+            lower_q = question.lower().replace('\u2019', "'")
+
+            if any(phrase in lower_q for phrase in EXIT_PHRASES):
+                speak("Goodbye.")
+                break
+
+            print("Thinking...", end=" ", flush=True)
+            groq_mode = os.environ.get("JARVIS_BACKEND", "") == "groq"
+            if groq_mode:
+                answer = ask_jarvis(question, history)
+                _already_spoken = False
+            else:
+                answer = ask_jarvis_streaming(question, history)
+                _already_spoken = True
+                _answer_norm = answer.lower().replace('\u2019', "'").replace('\u2018', "'")
+                if answer and any(p in _answer_norm for p in UNCERTAINTY_PHRASES):
+                    if has_internet():
+                        print("(auto web fallback...)", end=" ", flush=True)
+                        web_answer = ask_jarvis_web(question, history)
+                        if web_answer:
+                            answer = web_answer
+                            _already_spoken = False
+
+            if not answer:
+                print("No response.")
+                continue
+
+            print(f"\nJarvis: {answer}\n")
+            history.append((question, answer))
+            log_session_entry(question, answer)
+            if not _already_spoken:
+                speak(answer)
+
+            _drain_stream(stream, seconds=0.8)
+
+    finally:
+        _mic_stream = None
+        stream.stop_stream()
+        stream.close()
+
+    print("Jarvis voice mode off.")
+
+
 def transcribe(whisper_model, wav_path: str) -> str:
     segments, _ = whisper_model.transcribe(wav_path, language="en", vad_filter=True)
     return " ".join(seg.text.strip() for seg in segments).strip()
@@ -763,6 +870,7 @@ def main():
         print("\n[ERROR: faster-whisper not installed. Run: Jarvis install-voice]")
         sys.exit(1)
 
+    convo_mode = "--convo" in sys.argv
     history = []
 
     # Try to set up wake word mode
@@ -795,7 +903,18 @@ def main():
         print(f"Wake word setup failed ({e}). Using push-to-talk.")
 
     # Run the appropriate mode
-    if oww_model is not None and pa is not None:
+    if convo_mode:
+        if pa is None:
+            try:
+                import pyaudio
+                pa = pyaudio.PyAudio()
+            except ImportError:
+                print("PyAudio not installed. Run: Jarvis install-voice")
+                sys.exit(1)
+        continuous_loop(whisper, pa, history)
+        if pa:
+            pa.terminate()
+    elif oww_model is not None and pa is not None:
         wake_word_loop(whisper, oww_model, pa, history)
         if pa:
             pa.terminate()
