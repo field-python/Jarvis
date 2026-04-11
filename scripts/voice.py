@@ -422,13 +422,20 @@ def push_to_talk_loop(whisper_model, history: list) -> None:
             break
 
         print("Thinking...", end=" ", flush=True)
-        answer = ask_jarvis_streaming(question, history)
+        if os.environ.get("JARVIS_BACKEND", "") == "groq":
+            answer = ask_jarvis(question, history)
+            spoken = False
+        else:
+            answer = ask_jarvis_streaming(question, history)
+            spoken = True  # streaming speaks as it goes
 
         if not answer:
             print("No response. Try again.")
             continue
 
         print(f"\nJarvis: {answer}\n")
+        if not spoken:
+            speak(answer)
         history.append((question, answer))
 
     print("Jarvis voice mode off.")
@@ -653,9 +660,14 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
             # Check if question is asking for a live web search
             use_web = any(lower_q.startswith(t) or f" {t}" in lower_q for t in WEB_TRIGGERS)
             _already_spoken = False
+            groq_mode = os.environ.get("JARVIS_BACKEND", "") == "groq"
             if use_web:
                 answer = ask_jarvis_web(question, history)
                 last_sources = ["web search via DuckDuckGo"]
+            elif groq_mode:
+                # Groq uses HTTP API — can't stream via ollama client, get text then speak
+                answer = ask_jarvis(question, history)
+                _already_spoken = False
             else:
                 # Stream response — speaks sentence-by-sentence as tokens arrive
                 answer = ask_jarvis_streaming(question, history)
