@@ -178,50 +178,76 @@ def draw_menu(items, selected):
 ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember"}
 
 
+def _loop_prompt(prompt):
+    """Build the follow-up label from the original prompt, e.g. 'Question: ' → 'Question (ESC to exit): '"""
+    base = prompt.split("(")[0].strip().rstrip(":").rstrip()
+    return f"{base} (ESC to exit): "
+
+
 def run_command(label, cmd_args, needs_input, prompt):
     loop = cmd_args[0] in ASK_LOOP_CMDS and needs_input
-    first = True
 
-    while True:
+    def show_header():
         os.system("clear")
         print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
         print(f"{BOLD}  {label}{RESET}")
         print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
         print()
 
-        if needs_input:
-            ask_prompt = prompt if first else "Enter next question here or ESC for menu: "
-            first = False
-            try:
-                user_input = input_with_esc(f"  {YELLOW}{ask_prompt}{RESET}")
-            except KeyboardInterrupt:
-                return
-            if user_input is None:   # ESC pressed
-                return
-            user_input = user_input.strip()
-            if not user_input:
-                continue  # empty Enter — re-show prompt
-            full_cmd = [JARVIS] + cmd_args + [user_input]
-        else:
-            full_cmd = [JARVIS] + cmd_args
+    show_header()
 
+    if needs_input:
+        try:
+            user_input = input_with_esc(f"  {YELLOW}{prompt}{RESET}")
+        except KeyboardInterrupt:
+            return
+        if user_input is None:
+            return
+        user_input = user_input.strip()
+        if not user_input:
+            return
+        full_cmd = [JARVIS] + cmd_args + [user_input]
+    else:
+        full_cmd = [JARVIS] + cmd_args
+
+    print()
+    try:
+        subprocess.run(full_cmd)
+    except KeyboardInterrupt:
+        pass
+
+    print()
+    print(f"  {DIM}{'─' * 40}{RESET}")
+
+    if not loop:
+        print(f"  {DIM}Press ESC to return to menu...{RESET}", end="", flush=True)
+        getch()
+        return
+
+    # Loop mode: show answer, then ask for next WITHOUT clearing the screen.
+    # Only clear when the user actually types a new question.
+    follow = _loop_prompt(prompt)
+    while True:
+        print()
+        try:
+            next_q = input_with_esc(f"  {YELLOW}{follow}{RESET}")
+        except KeyboardInterrupt:
+            return
+        if next_q is None:          # ESC → back to menu
+            return
+        next_q = next_q.strip()
+        if not next_q:
+            continue                 # blank Enter → re-show same prompt
+
+        show_header()
+        full_cmd = [JARVIS] + cmd_args + [next_q]
         print()
         try:
             subprocess.run(full_cmd)
         except KeyboardInterrupt:
             pass
-
-        # ── after response ────────────────────────────────────────────────────
         print()
         print(f"  {DIM}{'─' * 40}{RESET}")
-
-        if loop:
-            # loop back to top — next iteration shows "Enter next question here or ESC for menu:"
-            continue
-        else:
-            print(f"  {DIM}Press any key to return to menu...{RESET}", end="", flush=True)
-            getch()
-            return
 
 
 def main():

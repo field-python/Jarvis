@@ -27,6 +27,7 @@ else:
 
 now          = datetime.now()
 current_date = f"{now.strftime('%A, %B')} {now.day}, {now.year}"
+current_time = now.strftime("%-I:%M %p")
 
 print(f"Fetching weather for {location}...")
 
@@ -68,7 +69,7 @@ tmp.close()
 
 print()
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"  Jarvis Weather  |  {location}")
+print(f"  Jarvis Weather  |  {location}  |  {current_time}")
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 print()
 

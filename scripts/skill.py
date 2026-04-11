@@ -2,9 +2,12 @@
 """skill.py — Skill of the Day: one practical, actionable skill per day"""
 import sys
 import os
+import select
 import subprocess
 import tempfile
 import random
+import tty
+import termios
 from pathlib import Path
 from datetime import datetime
 
@@ -17,6 +20,49 @@ host            = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
 now          = datetime.now()
 today        = now.strftime("%Y-%m-%d")
 current_date = f"{now.strftime('%A, %B')} {now.day}, {now.year}"
+
+DIM    = "\033[2m"
+YELLOW = "\033[93m"
+RESET  = "\033[0m"
+
+
+def input_with_esc(prompt_str):
+    """Like input() but returns None if ESC is pressed."""
+    sys.stdout.write(prompt_str)
+    sys.stdout.flush()
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    buf = []
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if r:
+                    sys.stdin.read(2)
+                    continue
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return None
+            elif ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(buf)
+            elif ch in ("\x7f", "\x08"):
+                if buf:
+                    buf.pop()
+                    sys.stdout.write("\x08 \x08")
+                    sys.stdout.flush()
+            elif ch == "\x03":
+                raise KeyboardInterrupt
+            elif ord(ch) >= 32:
+                buf.append(ch)
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
 
 CATEGORIES = [
     "wilderness survival",
@@ -132,6 +178,64 @@ if response.strip():
 
 print()
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"  'Jarvis skill [category]' for a specific topic")
-print(f"  'Jarvis skill new' to generate a different skill")
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+# ── "another skill?" loop ─────────────────────────────────────────────────────
+used_categories = {category}
+
+while True:
+    ans = input_with_esc(
+        f"  {YELLOW}Another skill? (ESC to exit / category name for specific): {RESET}"
+    )
+    if ans is None:
+        break
+    ans = ans.strip()
+    if not ans:
+        # blank → pick a different random category
+        remaining = [c for c in CATEGORIES if c not in used_categories]
+        if not remaining:
+            remaining = list(CATEGORIES)
+        next_cat = random.choice(remaining)
+    else:
+        # Match to a category
+        next_cat = None
+        low = ans.lower()
+        for cat in CATEGORIES:
+            if any(w in cat for w in low.split()):
+                next_cat = cat
+                break
+        if not next_cat:
+            next_cat = low  # use as-is
+
+    used_categories.add(next_cat)
+    next_label = next_cat.title()
+    next_prompt = (
+        f"You are Jarvis, a practical AI assistant. Today is {current_date}.\n\n"
+        f"Teach one specific, actionable skill from the category: {next_cat}.\n\n"
+        f"Format your response exactly like this:\n"
+        f"SKILL: [short name of the skill, 3-6 words]\n\n"
+        f"[2-3 sentences explaining what this skill is and why it matters.]\n\n"
+        f"HOW TO DO IT:\n"
+        f"1. [first step]\n"
+        f"2. [second step]\n"
+        f"3. [third step]\n"
+        f"(3-5 steps, each one sentence, concrete and specific)\n\n"
+        f"PRO TIP: [one sentence with a key insight or common mistake to avoid]\n\n"
+        f"Rules: Be specific, not vague. Give real steps a beginner can follow today. "
+        f"No fluff. Start directly with SKILL:."
+    )
+
+    next_tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", prefix="jarvis-skill-", delete=False
+    )
+    next_tmp.write(next_prompt)
+    next_tmp.close()
+
+    print()
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"  Jarvis Skill  |  {next_label}  |  {current_date}")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print()
+    stream_and_capture([sys.executable, generate_script, model, host, next_tmp.name])
+    os.unlink(next_tmp.name)
+    print()
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

@@ -5,8 +5,37 @@ import os
 import readline
 import subprocess
 import tempfile
+import tty
+import termios
 from pathlib import Path
 from datetime import datetime
+
+CYAN   = "\033[96m"
+GREEN  = "\033[92m"
+YELLOW = "\033[93m"
+BOLD   = "\033[1m"
+DIM    = "\033[2m"
+RESET  = "\033[0m"
+
+
+def getch():
+    import select as _sel
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+        if ch == "\x1b":
+            r, _, _ = _sel.select([sys.stdin], [], [], 0.05)
+            if r:
+                ch2 = sys.stdin.read(1)
+                r2, _, _ = _sel.select([sys.stdin], [], [], 0.05)
+                ch3 = sys.stdin.read(1) if r2 else ""
+                return f"\x1b{ch2}{ch3}"
+            return "\x1b"  # plain ESC
+        return ch
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 script_dir      = Path(__file__).parent.resolve()
 base_dir        = script_dir.parent
@@ -60,47 +89,67 @@ def display_recipe(filepath):
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 
-def list_recipes(category_filter=None):
+def browse_recipes(category_filter=None):
+    """Arrow-key recipe browser — select a recipe and view ingredients/directions."""
     files = all_recipe_files()
     if category_filter:
         files = [f for f in files if get_category(f) == category_filter]
 
     if not files:
-        if category_filter:
-            print(f"No recipes found in category: {category_filter}")
-            print(f"Available: {', '.join(CATEGORIES.keys())}")
-        else:
-            print("No recipes saved yet.")
+        print("No recipes saved yet." if not category_filter
+              else f"No recipes in category: {category_filter}")
         return
 
-    # Group by category
-    grouped = {}
+    # Build flat list of (title, category_label, filepath)
+    items = []
     for f in files:
-        cat = get_category(f)
-        grouped.setdefault(cat, []).append(f)
-
-    print()
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("  Jarvis Recipes")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-    for cat, cat_files in grouped.items():
+        first_line = f.read_text(encoding="utf-8").splitlines()[0]
+        title = first_line.lstrip("#").strip()
+        cat   = get_category(f)
         label = CATEGORIES.get(cat, cat.title())
-        print(f"\n  [{label}]")
-        for f in cat_files:
-            # Get the title from first line of file
-            first_line = f.read_text(encoding="utf-8").splitlines()[0]
-            title = first_line.lstrip("#").strip()
-            print(f"    {title}")
+        items.append((title, label, f))
 
-    print()
-    total = len(files)
-    print(f"  {total} recipe{'s' if total != 1 else ''} total")
-    print()
-    print("  Jarvis recipe \"search term\"   — find a recipe")
-    print("  Jarvis recipe add             — add your own")
-    print("  Jarvis recipe suggest \"...\"   — suggest from ingredients")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    selected = 0
+
+    def draw(sel):
+        os.system("clear")
+        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print(f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}")
+        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print()
+        for i, (title, cat_label, _) in enumerate(items):
+            if i == sel:
+                print(f"  {BOLD}{GREEN}▶  {title:<40}{RESET}  {GREEN}{DIM}[{cat_label}]{RESET}")
+            else:
+                print(f"  {DIM}   {title:<40}  [{cat_label}]{RESET}")
+        print()
+        print(f"  {DIM}↑↓ to select  |  Enter to view  |  Q or ESC to exit{RESET}")
+        print()
+
+    while True:
+        draw(selected)
+        key = getch()
+
+        if key in ("q", "Q", "\x03") or key.startswith("\x1b") and len(key) == 1:
+            # Q, Ctrl+C, or plain ESC
+            os.system("clear")
+            return
+        elif key == "\x1b[A":   # up
+            selected = (selected - 1) % len(items)
+        elif key == "\x1b[B":   # down
+            selected = (selected + 1) % len(items)
+        elif key in ("\r", "\n"):
+            display_recipe(items[selected][2])
+            print()
+            try:
+                input(f"  {DIM}Press Enter to return to recipe list...{RESET}")
+            except (EOFError, KeyboardInterrupt):
+                return
+
+
+def list_recipes(category_filter=None):
+    """Alias that opens the interactive browser."""
+    browse_recipes(category_filter)
 
 
 def search_recipes(query):
