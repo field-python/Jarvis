@@ -237,11 +237,34 @@ def suggest_recipe(ingredients):
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 
+def browse_interactive(category_filter=None):
+    """Show recipe list then let the user search/view without going back to menu."""
+    while True:
+        os.system("clear")
+        list_recipes(category_filter)
+        print()
+        print("  ────────────────────────────────────────")
+        try:
+            query = input("  Search recipes (or Enter to exit): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if not query:
+            return
+
+        os.system("clear")
+        search_recipes(query)
+        print()
+        try:
+            input("  Press Enter to go back to the list...")
+        except (EOFError, KeyboardInterrupt):
+            return
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
 arg = sys.argv[1].lower().strip() if len(sys.argv) > 1 else ""
 
 if not arg or arg == "list":
-    list_recipes()
+    browse_interactive()
 
 elif arg in CATEGORIES:
     list_recipes(category_filter=arg)

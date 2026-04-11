@@ -18,6 +18,9 @@ host       = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
 output_dir = Path.home() / "jarvis-code"
 MAX_FIX    = 3
 
+# Code generation always uses local Ollama — qwen2.5-coder isn't available on Groq
+CODE_ENV = {**os.environ, "JARVIS_BACKEND": "ollama", "JARVIS_THINK": "0"}
+
 if len(sys.argv) < 2:
     print('Usage: Jarvis code "describe what you want to build"')
     print()
@@ -85,7 +88,7 @@ print()
 # ── stream generate while capturing ──────────────────────────────────────────
 proc = subprocess.Popen(
     [sys.executable, generate_script, CODE_MODEL, host, tmp_prompt.name],
-    stdout=subprocess.PIPE, text=True
+    stdout=subprocess.PIPE, text=True, env=CODE_ENV
 )
 buf = io.StringIO()
 for ch in iter(lambda: proc.stdout.read(1), ""):
@@ -180,7 +183,7 @@ for attempt in range(1, MAX_FIX + 1):
 
     fix_result = subprocess.run(
         [sys.executable, generate_script, CODE_MODEL, host, tmp_fix.name],
-        capture_output=True, text=True
+        capture_output=True, text=True, env=CODE_ENV
     )
     os.unlink(tmp_fix.name)
 

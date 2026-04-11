@@ -28,11 +28,15 @@ def main():
     resp = ollama.embeddings(model="nomic-embed-text", prompt=query)
     embedding = resp["embedding"]
 
-    results = collection.query(
-        query_embeddings=[embedding],
-        n_results=TOP_K,
-        include=["documents", "metadatas"]
-    )
+    try:
+        results = collection.query(
+            query_embeddings=[embedding],
+            n_results=TOP_K,
+            include=["documents", "metadatas"]
+        )
+    except Exception:
+        print("Search index error — try: Jarvis rebuild-index", file=sys.stderr)
+        sys.exit(1)
 
     docs = results["documents"][0]
     metas = results["metadatas"][0]

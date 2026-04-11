@@ -61,15 +61,46 @@ def spoken_label(seconds):
     return ", ".join(parts)
 
 
+def run_timer(total_seconds):
+    duration_label = format_duration(total_seconds)
+    spoken         = spoken_label(total_seconds)
+
+    print()
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"  Timer set: {duration_label}")
+    print("  Press Ctrl+C to cancel")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print()
+
+    tts(f"Timer started. {spoken} on the clock.")
+
+    remaining = total_seconds
+    try:
+        while remaining > 0:
+            print(f"\r  ⏱  {format_duration(remaining)} remaining   ", end="", flush=True)
+
+            if remaining == 300: tts("Five minutes remaining.")
+            elif remaining == 60: tts("One minute remaining.")
+            elif remaining == 30: tts("Thirty seconds remaining.")
+            elif remaining == 10: tts("Ten seconds.")
+
+            time.sleep(1)
+            remaining -= 1
+    except KeyboardInterrupt:
+        print("\n\n  Timer cancelled.")
+        return False
+
+    print("\r  ✓  Timer done!               ")
+    print()
+    tts("Time's up.")
+    return True
+
+
 if len(sys.argv) < 2:
     print("Usage: Jarvis timer <duration>")
     print()
     print("Examples:")
-    print("  Jarvis timer 1h")
-    print("  Jarvis timer 10m")
-    print("  Jarvis timer 30s")
-    print("  Jarvis timer 1h30m")
-    print('  Jarvis timer "10 minutes"')
+    print("  Jarvis timer 30s, 10m, 1h, 1h30m")
     sys.exit(1)
 
 inp           = " ".join(sys.argv[1:])
@@ -77,37 +108,24 @@ total_seconds = parse_seconds(inp)
 
 if total_seconds <= 0:
     print(f"Couldn't parse duration: {inp}")
-    print("Try: 10m, 30s, 1h, 1h30m, or \"10 minutes\"")
+    print("Try: 10m, 30s, 1h, 1h30m")
     sys.exit(1)
 
-duration_label = format_duration(total_seconds)
-spoken         = spoken_label(total_seconds)
+while True:
+    completed = run_timer(total_seconds)
+    if not completed:
+        sys.exit(0)
 
-print()
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"  Timer set: {duration_label}")
-print("  Press Ctrl+C to cancel")
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print()
+    print()
+    try:
+        again = input("  Set another timer? (e.g. 10m, 1h) or Enter to exit: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        sys.exit(0)
 
-tts(f"Timer started. {spoken} on the clock.")
+    if not again:
+        sys.exit(0)
 
-remaining = total_seconds
-try:
-    while remaining > 0:
-        print(f"\r  ⏱  {format_duration(remaining)} remaining   ", end="", flush=True)
-
-        if remaining == 300: tts("Five minutes remaining.")
-        elif remaining == 60: tts("One minute remaining.")
-        elif remaining == 30: tts("Thirty seconds remaining.")
-        elif remaining == 10: tts("Ten seconds.")
-
-        time.sleep(1)
-        remaining -= 1
-except KeyboardInterrupt:
-    print("\n\n  Timer cancelled.")
-    sys.exit(0)
-
-print("\r  ✓  Timer done!               ")
-print()
-tts("Time's up.")
+    total_seconds = parse_seconds(again)
+    if total_seconds <= 0:
+        print(f"  Couldn't parse: {again}")
+        sys.exit(0)

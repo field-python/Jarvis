@@ -10,9 +10,12 @@ Uses qwen2.5-coder:7b for instruction quality.
 import sys
 import os
 import readline
+import select
 import subprocess
 import tempfile
 import textwrap
+import tty
+import termios
 from pathlib import Path
 from datetime import date
 
@@ -24,6 +27,9 @@ generate_script = str(base_dir / "scripts" / "generate.py")
 host            = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
 CODE_MODEL      = "qwen2.5-coder:7b"
 LESSONS_DIR     = base_dir / "notes" / "lessons"
+
+# Force local Ollama — qwen2.5-coder isn't available on Groq
+CODE_ENV = {**os.environ, "JARVIS_BACKEND": "ollama", "JARVIS_THINK": "0"}
 
 CYAN   = "\033[96m"
 GREEN  = "\033[92m"
@@ -41,7 +47,7 @@ def ask_model(prompt: str) -> str:
     try:
         result = subprocess.run(
             [venv_python, generate_script, CODE_MODEL, host, tmp],
-            capture_output=True, text=True
+            capture_output=True, text=True, env=CODE_ENV
         )
         return result.stdout.strip()
     finally:
@@ -49,6 +55,44 @@ def ask_model(prompt: str) -> str:
             os.unlink(tmp)
         except OSError:
             pass
+
+
+def input_with_esc(prompt_str):
+    """Like input() but returns None if ESC is pressed."""
+    sys.stdout.write(prompt_str)
+    sys.stdout.flush()
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    buf = []
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if r:
+                    sys.stdin.read(2)
+                    continue
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return None
+            elif ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(buf)
+            elif ch in ("\x7f", "\x08"):
+                if buf:
+                    buf.pop()
+                    sys.stdout.write("\x08 \x08")
+                    sys.stdout.flush()
+            elif ch == "\x03":
+                raise KeyboardInterrupt
+            elif ord(ch) >= 32:
+                buf.append(ch)
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 def wrap(text: str, width: int = 72, indent: str = "  ") -> str:
@@ -222,7 +266,9 @@ def run_lesson(topic: str):
     for i, step in enumerate(curriculum, 1):
         print(f"  {DIM}{i}.{RESET} {step}")
     print()
-    input(f"  {YELLOW}Press Enter to start →{RESET} ")
+    r = input_with_esc(f"  {YELLOW}Press Enter to start  (ESC to exit) →{RESET} ")
+    if r is None:
+        return
 
     all_steps = []
     step_num = 0
@@ -258,9 +304,13 @@ def run_lesson(topic: str):
 
             try:
                 lines = []
-                print(f"  {YELLOW}Your answer (blank line to submit):{RESET}")
+                print(f"  {YELLOW}Your answer (blank line to submit  |  ESC to exit):{RESET}")
                 while True:
-                    line = input("  ")
+                    line = input_with_esc("  ")
+                    if line is None:   # ESC
+                        print(f"\n  {DIM}Session saved. Come back anytime!{RESET}")
+                        save_session(topic, all_steps)
+                        sys.exit(0)
                     if line == "":
                         break
                     lines.append(line)
@@ -322,12 +372,18 @@ def run_lesson(topic: str):
                 print_section("Solution:", solution, CYAN)
 
             print()
-            resp = input(f"  {YELLOW}Try again? [y/N] {RESET}").strip().lower()
-            if resp != "y":
+            resp = input_with_esc(f"  {YELLOW}Try again? [y/N]  (ESC to exit) {RESET}")
+            if resp is None:
+                save_session(topic, all_steps)
+                sys.exit(0)
+            if resp.strip().lower() != "y":
                 break
 
         if step_num < len(curriculum):
-            input(f"\n  {YELLOW}Press Enter for Step {step_num + 1} →{RESET} ")
+            r = input_with_esc(f"\n  {YELLOW}Press Enter for Step {step_num + 1}  (ESC to exit) →{RESET} ")
+            if r is None:
+                save_session(topic, all_steps)
+                sys.exit(0)
 
     # Final summary
     os.system("clear")
