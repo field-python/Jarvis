@@ -1,6 +1,7 @@
 # ── sensitive config ──────────────────────────────────────────────────────────
 config/groq.conf
 config/location.conf
+config/voice.conf
 config/cloud-mode
 config/fast-mode
 config/groq-mode
@@ -15,6 +16,10 @@ notes/voice-sessions/
 notes/saved-answers/
 notes/lessons/
 notes/web-cache/
+
+# ── voice models (downloaded locally, not committed) ─────────────────────────
+voice/*.onnx
+voice/*.onnx.json
 
 # ── large archive content (users build their own) ─────────────────────────────
 # Keep only the .gitkeep placeholder — all note content stays local
