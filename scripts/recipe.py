@@ -25,6 +25,12 @@ CATEGORIES = {
     "preservation":   "Food Preservation",
     "homestead":      "Homestead & Farm",
     "north-american": "North American Classics",
+    "wild-game":      "Wild Game",
+    "breakfast":      "Breakfast",
+    "soups":          "Soups & Stews",
+    "bread":          "Breads",
+    "camp-cooking":   "Camp Cooking",
+    "comfort-food":   "Comfort Food",
     "gourmet":        "Gourmet",
 }
 
