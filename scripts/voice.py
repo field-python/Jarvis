@@ -28,14 +28,16 @@ from datetime import date
 
 import numpy as np
 
-# Suppress ALSA underrun / error messages from PyAudio internals
+# Suppress ALSA underrun / error messages from PyAudio internals.
+# Keep _alsa_noop alive at module level — ctypes callbacks must not be garbage collected.
+_alsa_noop = None
 try:
-    import ctypes
-    _asound = ctypes.cdll.LoadLibrary("libasound.so.2")
-    _HANDLER = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int,
-                                 ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)
-    _asound.snd_lib_error_set_handler(_HANDLER(lambda *_: None))
-    del ctypes, _asound, _HANDLER
+    import ctypes as _ctypes
+    _asound = _ctypes.cdll.LoadLibrary("libasound.so.2")
+    _HANDLER_T = _ctypes.CFUNCTYPE(None, _ctypes.c_char_p, _ctypes.c_int,
+                                    _ctypes.c_char_p, _ctypes.c_int, _ctypes.c_char_p)
+    _alsa_noop = _HANDLER_T(lambda *_: None)
+    _asound.snd_lib_error_set_handler(_alsa_noop)
 except Exception:
     pass
 
