@@ -10,6 +10,7 @@ import os
 import io
 import re
 import readline
+import select
 import subprocess
 import tempfile
 import tty
@@ -55,6 +56,52 @@ LANG_MENU = [
 
 
 # ── Terminal helpers ──────────────────────────────────────────────────────────
+
+def flush_stdin():
+    """Discard keystrokes buffered while waiting for the model."""
+    try:
+        termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
+    except Exception:
+        pass
+
+
+def input_with_esc(prompt_str):
+    """Like input() but returns None if ESC is pressed."""
+    sys.stdout.write(prompt_str)
+    sys.stdout.flush()
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    buf = []
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if r:
+                    sys.stdin.read(2)
+                    continue
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return None
+            elif ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(buf)
+            elif ch in ("\x7f", "\x08"):
+                if buf:
+                    buf.pop()
+                    sys.stdout.write("\x08 \x08")
+                    sys.stdout.flush()
+            elif ch == "\x03":
+                raise KeyboardInterrupt
+            elif ord(ch) >= 32:
+                buf.append(ch)
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
 
 def getch():
     fd = sys.stdin.fileno()
@@ -227,9 +274,9 @@ def feature_learn(lang: str):
     for i, t in enumerate(topics, 1):
         print(f"  {DIM}{i}.{RESET} {t}")
     print()
-    try:
-        input(f"  {YELLOW}Press Enter to start →{RESET} ")
-    except (EOFError, KeyboardInterrupt):
+    flush_stdin()
+    r = input_with_esc(f"  {YELLOW}Press Enter to start  (ESC to exit) →{RESET} ")
+    if r is None:
         return
 
     all_steps = []
@@ -287,6 +334,8 @@ def feature_learn(lang: str):
         vocab    = extract(lesson, "VOCABULARY")
         practice = extract(lesson, "PRACTICE")
 
+        flush_stdin()  # discard keystrokes typed while model was loading
+
         # Fallback: if section parsing failed, show the full raw response
         if not explain and not vocab and not practice:
             print(wrap(lesson))
@@ -302,12 +351,11 @@ def feature_learn(lang: str):
             print(wrap(practice))
         print()
 
-        try:
-            if step_num < len(topics):
-                input(f"  {YELLOW}Press Enter for Step {step_num + 1} →{RESET} ")
-            else:
-                input(f"  {GREEN}Press Enter to finish →{RESET} ")
-        except (EOFError, KeyboardInterrupt):
+        if step_num < len(topics):
+            r = input_with_esc(f"  {YELLOW}Press Enter for Step {step_num + 1}  (ESC to exit) →{RESET} ")
+        else:
+            r = input_with_esc(f"  {GREEN}Press Enter to finish  (ESC to exit) →{RESET} ")
+        if r is None:
             break
 
     # ── End of lesson ──────────────────────────────────────────────────────────
@@ -326,10 +374,7 @@ def feature_learn(lang: str):
         out_file = save_note(lang, "lesson", content)
         print(f"  {DIM}Saved to: {out_file}{RESET}\n")
 
-    try:
-        input(f"  {DIM}Press Enter to return to menu...{RESET}")
-    except (EOFError, KeyboardInterrupt):
-        pass
+    input_with_esc(f"  {DIM}Press Enter to return to menu  (ESC also works)...{RESET}")
 
 
 # ── Feature: Dictionary ───────────────────────────────────────────────────────
@@ -417,10 +462,7 @@ def feature_phrases(lang: str):
         out_file = save_note(lang, "common-phrases", result)
         print(f"  {DIM}Saved to: {out_file}{RESET}\n")
 
-    try:
-        input(f"  {DIM}Press Enter to return to menu...{RESET}")
-    except (EOFError, KeyboardInterrupt):
-        pass
+    input_with_esc(f"  {DIM}Press Enter to return to menu  (ESC also works)...{RESET}")
 
 
 # ── Feature: Grammar Guide ────────────────────────────────────────────────────
@@ -459,10 +501,7 @@ def feature_grammar(lang: str):
         out_file = save_note(lang, "grammar-guide", result)
         print(f"  {DIM}Saved to: {out_file}{RESET}\n")
 
-    try:
-        input(f"  {DIM}Press Enter to return to menu...{RESET}")
-    except (EOFError, KeyboardInterrupt):
-        pass
+    input_with_esc(f"  {DIM}Press Enter to return to menu  (ESC also works)...{RESET}")
 
 
 # ── Feature: Tips & Tricks ────────────────────────────────────────────────────
@@ -504,10 +543,7 @@ def feature_tips(lang: str):
         out_file = save_note(lang, "tips-and-tricks", result)
         print(f"  {DIM}Saved to: {out_file}{RESET}\n")
 
-    try:
-        input(f"  {DIM}Press Enter to return to menu...{RESET}")
-    except (EOFError, KeyboardInterrupt):
-        pass
+    input_with_esc(f"  {DIM}Press Enter to return to menu  (ESC also works)...{RESET}")
 
 
 # ── Sub-menu navigator ────────────────────────────────────────────────────────

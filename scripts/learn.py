@@ -9,6 +9,7 @@ Uses qwen2.5-coder:7b for instruction quality.
 
 import sys
 import os
+import re
 import readline
 import select
 import subprocess
@@ -228,25 +229,35 @@ def open_in_editor(challenge: str) -> str:
     return "\n".join(lines).strip()
 
 
+def flush_stdin():
+    """Discard keystrokes buffered while waiting for the model."""
+    try:
+        termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
+    except Exception:
+        pass
+
+
 def parse_section(text: str, section: str) -> str:
-    """Extract a named section from model output."""
+    """Extract a named section from model output, tolerating markdown-formatted headers."""
     lines = text.splitlines()
     capturing = False
     result = []
+    all_keys = {"EXPLAIN", "EXAMPLE", "CHALLENGE", "FEEDBACK", "SOLUTION"}
+    section_key = section.upper()
     for line in lines:
-        if line.strip().upper().startswith(section.upper() + ":"):
+        # Strip non-alphanumeric chars so **EXPLAIN:** and EXPLAIN: both match
+        norm = re.sub(r'[^A-Za-z0-9]', '', line).upper()
+        if norm.startswith(section_key):
             capturing = True
-            remainder = line.split(":", 1)[1].strip()
-            if remainder:
-                result.append(remainder)
+            colon_idx = line.find(":")
+            if colon_idx != -1:
+                rest = re.sub(r'[*_`#]', '', line[colon_idx + 1:]).strip()
+                if rest:
+                    result.append(rest)
         elif capturing:
-            # Stop at next ALL-CAPS section header
-            if line.strip() and line.strip().upper() == line.strip() and line.strip().endswith(":"):
+            if any(norm.startswith(k) for k in (all_keys - {section_key})):
                 break
-            elif line.strip().upper().startswith(("EXPLAIN:", "EXAMPLE:", "CHALLENGE:", "FEEDBACK:", "SOLUTION:")):
-                break
-            else:
-                result.append(line)
+            result.append(line)
     return "\n".join(result).strip()
 
 
@@ -286,6 +297,7 @@ def run_lesson(topic: str):
         challenge = parse_section(lesson, "CHALLENGE")
 
         print(" " * 40, end="\r")  # clear loading line
+        flush_stdin()              # discard keystrokes typed during model load
 
         if explain:
             print_section("Concept:", explain, CYAN)
@@ -366,6 +378,7 @@ def run_lesson(topic: str):
             solution = parse_section(feedback_raw, "SOLUTION")
 
             print(" " * 40, end="\r")
+            flush_stdin()
             if feedback:
                 print_section("Feedback:", feedback, GREEN)
             if solution:

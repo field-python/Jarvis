@@ -4,8 +4,11 @@ import sys
 import os
 import io
 import re
+import select
 import subprocess
 import tempfile
+import tty
+import termios
 from pathlib import Path
 from datetime import datetime
 
@@ -21,6 +24,30 @@ MAX_FIX    = 3
 # Code generation always uses local Ollama — qwen2.5-coder isn't available on Groq
 CODE_ENV = {**os.environ, "JARVIS_BACKEND": "ollama", "JARVIS_THINK": "0"}
 
+
+def read_key(prompt_str):
+    """Show prompt, read one keypress. Returns char, or None for ESC."""
+    sys.stdout.write(prompt_str)
+    sys.stdout.flush()
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        ch = sys.stdin.read(1)
+        if ch == "\x1b":
+            r, _, _ = select.select([sys.stdin], [], [], 0.05)
+            if r:
+                sys.stdin.read(2)
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            return None
+        sys.stdout.write(ch + "\n")
+        sys.stdout.flush()
+        return ch
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 if len(sys.argv) < 2:
     print('Usage: Jarvis code "describe what you want to build"')
     print()
@@ -34,14 +61,37 @@ task       = " ".join(sys.argv[1:])
 lower_task = task.lower()
 
 # ── detect language ───────────────────────────────────────────────────────────
-if re.search(r'\b(bash|shell|sh script|shell script)\b', lower_task):
-    lang    = "bash"
-    ext     = ".sh"
-    run_cmd = ["bash"]
+if re.search(r'\b(arduino|esp32|esp8266|microcontroller|avr|\.ino)\b', lower_task):
+    lang         = "arduino"
+    lang_display = "Arduino (C++)"
+    ext          = ".ino"
+    run_cmd      = None
+elif re.search(r'\b(bash|shell|sh script|shell script)\b', lower_task):
+    lang         = "bash"
+    lang_display = "Bash"
+    ext          = ".sh"
+    run_cmd      = ["bash"]
+elif re.search(r'\b(javascript|node\.?js|nodejs|express|react|vue)\b', lower_task) or \
+     re.search(r'\bjs\b', lower_task):
+    lang         = "javascript"
+    lang_display = "JavaScript"
+    ext          = ".js"
+    run_cmd      = ["node"]
+elif re.search(r'\b(c\+\+|cpp|c code|c program)\b', lower_task):
+    lang         = "c++"
+    lang_display = "C++"
+    ext          = ".cpp"
+    run_cmd      = None
+elif re.search(r'\b(sql|sqlite|mysql|postgres|mariadb)\b', lower_task):
+    lang         = "sql"
+    lang_display = "SQL"
+    ext          = ".sql"
+    run_cmd      = None
 else:
-    lang    = "python"
-    ext     = ".py"
-    run_cmd = [sys.executable]
+    lang         = "python"
+    lang_display = "Python"
+    ext          = ".py"
+    run_cmd      = [sys.executable]
 
 # ── search coding notes for context (keyword, fast) ──────────────────────────
 coding_notes = base_dir / "notes" / "coding"
@@ -64,7 +114,7 @@ if coding_notes.is_dir():
 # ── build prompt ──────────────────────────────────────────────────────────────
 now    = datetime.now()
 prompt = (
-    f"You are an expert {lang} programmer. Write clean, working {lang} code.\n\n"
+    f"You are an expert {lang_display} programmer. Write clean, working {lang_display} code.\n\n"
     f"Rules:\n"
     f"- Output ONLY a single complete code block — no explanation before or after unless asked\n"
     f"- Use a fenced code block: ```{lang} ... ```\n"
@@ -82,7 +132,7 @@ tmp_prompt = tempfile.NamedTemporaryFile(
 tmp_prompt.write(prompt)
 tmp_prompt.close()
 
-print(f"Generating {lang} code...")
+print(f"Generating {lang_display} code...")
 print()
 
 # ── stream generate while capturing ──────────────────────────────────────────
@@ -117,15 +167,17 @@ print("━━━━━━━━━━━━━━━━━━━━━━━━�
 print()
 
 # ── optional run + self-correct loop ─────────────────────────────────────────
-try:
-    run_choice = input("Run it now? [y/N] ").strip().lower()
-except (EOFError, KeyboardInterrupt):
-    run_choice = ""
-
-if run_choice not in ("y", "yes"):
-    print(f"Done. Run it later with:  {' '.join(run_cmd)} \"{out_file}\"")
+if run_cmd is None:
+    # Non-runnable language (Arduino, C++, SQL) — just show the path
+    print(f"Done. Open the file to compile or flash:")
+    print(f"  {out_file}")
     sys.exit(0)
 
+ch = read_key("Run it now? [y/N/ESC] ")
+if ch is None or ch.lower() != "y":
+    if ch is not None:
+        print(f"Done. Run it later with:  {' '.join(run_cmd)} \"{out_file}\"")
+    sys.exit(0)
 current_file = out_file
 for attempt in range(1, MAX_FIX + 1):
     print()

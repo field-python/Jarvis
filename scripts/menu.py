@@ -215,7 +215,8 @@ def run_command(label, cmd_args, needs_input, prompt):
             # loop back to top — next iteration shows "Enter next question here or ESC for menu:"
             continue
         else:
-            input(f"  {DIM}Press Enter to return to menu...{RESET}")
+            print(f"  {DIM}Press any key to return to menu...{RESET}", end="", flush=True)
+            getch()
             return
 
 
