@@ -72,7 +72,8 @@ MAX_RECORD_SECONDS    = 20     # hard cap — don't record forever
 MAX_RECORD_CHUNKS     = int(MAX_RECORD_SECONDS * RATE / CHUNK)
 
 # Wake word detection threshold (0.0–1.0)
-WAKE_WORD_THRESHOLD = 0.5
+# Lower = more sensitive (catches more), higher = stricter (fewer false triggers)
+WAKE_WORD_THRESHOLD = 0.35
 
 # Cooldown after any wake word trigger — prevents echo re-triggering
 TRIGGER_COOLDOWN = 5.0  # seconds to ignore detections after a trigger
@@ -685,8 +686,9 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
     # Drain mic + reset model after startup TTS so it can't self-trigger
     _drain_stream(stream, seconds=2.0)
     _reset_oww(oww_model)
-    last_trigger = 0.0
-    last_sources = []   # tracks sources used for the most recent answer
+    last_trigger  = 0.0
+    last_sources  = []   # tracks sources used for the most recent answer
+    confirm_hits  = 0    # consecutive chunks above threshold (reduces false triggers)
 
     print('\n[Listening for "Hey Jarvis"...]')
 
@@ -701,8 +703,16 @@ def wake_word_loop(whisper_model, oww_model, pa, history: list) -> None:
             score = max(prediction.values()) if prediction else 0.0
 
             now = time.time()
-            if score < WAKE_WORD_THRESHOLD or (now - last_trigger) < TRIGGER_COOLDOWN:
+            if (now - last_trigger) < TRIGGER_COOLDOWN:
+                confirm_hits = 0
                 continue
+            if score < WAKE_WORD_THRESHOLD:
+                confirm_hits = 0
+                continue
+            confirm_hits += 1
+            if confirm_hits < 2:   # require 2 consecutive hits to fire
+                continue
+            confirm_hits = 0
 
             # ── wake word detected ─────────────────────────────────────────
             last_trigger = now
