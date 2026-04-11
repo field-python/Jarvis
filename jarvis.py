@@ -179,6 +179,10 @@ def do_help():
   Jarvis download-regions        Download regional content (states/provinces)
   Jarvis download-coding         Download coding references
   Jarvis download-general        Download general knowledge
+  Jarvis download-culture        Download 70s rock, occult, Aleister Crowley topics
+  Jarvis download-tech           Download Linux, WiFi, networking reference
+  Jarvis diagnose                System diagnostics + Jarvis analysis
+  Jarvis diagnose --wifi         WiFi-specific diagnostics
   Jarvis rebuild-index           Rebuild semantic search index
 
   WEB UI
@@ -531,6 +535,12 @@ def main():
         run_py("download-coding-content.py", *rest)
     elif cmd == "download-general":
         run_py("download-general-content.py", *rest)
+    elif cmd in ("download-culture", "download-occult"):
+        run_py("download-culture-occult.py", *rest)
+    elif cmd in ("download-tech", "download-linux"):
+        run_py("download-tech-linux.py", *rest)
+    elif cmd in ("diagnose", "diag", "diagnostics"):
+        run_py("diagnose.py", *rest)
     elif cmd == "rebuild-index":
         print("Rebuilding semantic index (this takes a few minutes)...")
         r = subprocess.run([PYTHON, str(SCRIPTS / "build-index.py")])

@@ -58,8 +58,12 @@ MENU = [
 
     # ── System ────────────────────────────────────────────────────────────────
     ("Web UI (phone access)",   ["web-ui"],       False, ""),
+    ("System diagnostics",      ["diagnose"],     False, ""),
+    ("Diagnose WiFi",           ["diagnose", "--wifi"], False, ""),
     ("Update current events",   ["update"],       False, ""),
     ("Download general knowledge", ["download-general"], False, ""),
+    ("Download culture & occult", ["download-culture"], False, ""),
+    ("Download Linux & tech",   ["download-tech"], False, ""),
     ("Show help",               ["help"],         False, ""),
 ]
 

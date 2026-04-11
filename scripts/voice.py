@@ -204,9 +204,9 @@ def detect_voice_gender(wav_path: str) -> str:
 
 def _gender_note() -> str:
     if _speaker_gender == "female":
-        return "The speaker is female — address them as 'ma'am', never 'sir'.\n"
+        return "The speaker is female — you may use 'ma'am' once per response at most, only when it feels natural. Do not end every sentence with it.\n"
     if _speaker_gender == "male":
-        return "The speaker is male — address them as 'sir'.\n"
+        return "The speaker is male — you may use 'sir' once per response at most, only when it feels natural. Do not end every sentence with it.\n"
     return ""
 
 
@@ -999,7 +999,7 @@ def main():
     print("Loading voice model...", end=" ", flush=True)
     try:
         from faster_whisper import WhisperModel
-        whisper = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+        whisper = WhisperModel("base.en", device="cpu", compute_type="int8")
         print("ready.")
     except ImportError:
         print("\n[ERROR: faster-whisper not installed. Run: Jarvis install-voice]")
@@ -1029,7 +1029,17 @@ def main():
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")   # suppress harmless CUDA provider warning
             oww_model = OWWModel(wakeword_model_paths=[_model_path])
-        pa = pyaudio.PyAudio()
+
+        # Suppress JACK "server not running" spam — redirect fd2 during PyAudio init
+        _devnull_fd  = os.open(os.devnull, os.O_WRONLY)
+        _saved_stderr = os.dup(2)
+        os.dup2(_devnull_fd, 2)
+        try:
+            pa = pyaudio.PyAudio()
+        finally:
+            os.dup2(_saved_stderr, 2)
+            os.close(_saved_stderr)
+            os.close(_devnull_fd)
         print("ready.")
 
     except ImportError:
