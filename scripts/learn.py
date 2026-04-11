@@ -1,0 +1,363 @@
+#!/usr/bin/env python3
+"""
+learn.py — Step-by-step interactive coding lessons with Jarvis
+Usage: learn.py "topic"
+
+Walks through a topic with explanations, examples, challenges, and feedback.
+Uses qwen2.5-coder:7b for instruction quality.
+"""
+
+import sys
+import os
+import readline
+import subprocess
+import tempfile
+import textwrap
+from pathlib import Path
+from datetime import date
+
+script_dir = Path(__file__).parent.resolve()
+base_dir   = script_dir.parent
+
+venv_python    = os.environ.get("JARVIS_VENV", str(Path.home() / ".jarvis-venv")) + "/bin/python"
+generate_script = str(base_dir / "scripts" / "generate.py")
+host            = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
+CODE_MODEL      = "qwen2.5-coder:7b"
+LESSONS_DIR     = base_dir / "notes" / "lessons"
+
+CYAN   = "\033[96m"
+GREEN  = "\033[92m"
+YELLOW = "\033[93m"
+RED    = "\033[91m"
+BOLD   = "\033[1m"
+DIM    = "\033[2m"
+RESET  = "\033[0m"
+
+
+def ask_model(prompt: str) -> str:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", prefix="jarvis-learn-", delete=False) as f:
+        f.write(prompt)
+        tmp = f.name
+    try:
+        result = subprocess.run(
+            [venv_python, generate_script, CODE_MODEL, host, tmp],
+            capture_output=True, text=True
+        )
+        return result.stdout.strip()
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+def wrap(text: str, width: int = 72, indent: str = "  ") -> str:
+    lines = text.splitlines()
+    out = []
+    in_code = False
+    for line in lines:
+        if line.strip().startswith("```"):
+            in_code = not in_code
+            out.append(indent + line)
+        elif in_code:
+            out.append(indent + line)
+        else:
+            if len(line) > width:
+                wrapped = textwrap.fill(line, width=width, initial_indent=indent, subsequent_indent=indent)
+                out.append(wrapped)
+            else:
+                out.append(indent + line if line.strip() else "")
+    return "\n".join(out)
+
+
+def hr(char="━", width=50):
+    print(f"{CYAN}{char * width}{RESET}")
+
+
+def header(title: str):
+    hr()
+    print(f"{BOLD}{CYAN}  {title}{RESET}")
+    hr()
+
+
+def save_session(topic: str, steps: list):
+    LESSONS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = date.today().strftime("%Y-%m-%d")
+    slug = topic.lower().replace(" ", "-")[:40]
+    out = LESSONS_DIR / f"{stamp}-{slug}.md"
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(f"# Lesson: {topic}\n\n*Date: {stamp}*\n\n")
+        for i, step in enumerate(steps, 1):
+            f.write(f"## Step {i}\n\n{step}\n\n")
+    return out
+
+
+def get_curriculum(topic: str) -> list:
+    """Ask the model for a 5-step lesson plan."""
+    prompt = f"""You are a patient coding tutor for a beginner.
+Create a lesson plan for: {topic}
+
+List exactly 5 lesson steps as a numbered list. Each step should be one short phrase (under 8 words).
+Example format:
+1. What a variable is and why
+2. Assigning values to variables
+3. Variable types: strings and numbers
+4. Updating and reusing variables
+5. Common beginner mistakes
+
+Only output the numbered list. Nothing else."""
+    raw = ask_model(prompt)
+    steps = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if line and line[0].isdigit() and "." in line:
+            steps.append(line.split(".", 1)[1].strip())
+    return steps[:5] if steps else [f"Introduction to {topic}",
+                                     f"Core concepts",
+                                     f"Writing your first code",
+                                     f"Common patterns",
+                                     f"Practice and review"]
+
+
+def get_lesson_step(topic: str, step_title: str, step_num: int, total: int) -> str:
+    """Generate content for one lesson step."""
+    prompt = f"""You are teaching coding to a complete beginner who has never written code before.
+Pretend you are explaining this to a curious 12-year-old. Use everyday words and real-life comparisons.
+
+Topic: {topic}
+Step {step_num} of {total}: {step_title}
+
+Write exactly these three sections:
+
+EXPLAIN:
+[2-3 sentences in plain everyday English. Compare the concept to something from real life if possible.
+Never use jargon without immediately explaining it in parentheses.]
+
+EXAMPLE:
+[3-8 lines of working code. Every single line must have a comment explaining what it does in plain English.]
+
+CHALLENGE:
+[One very specific task. Tell the student EXACTLY what to type and what result to expect.
+Example: "Write a loop that prints the word Hello five times. When you run it, you should see Hello printed on five separate lines."]
+
+Keep it simple. Short sentences. Be encouraging and friendly."""
+    return ask_model(prompt)
+
+
+def get_feedback(topic: str, challenge: str, student_answer: str) -> str:
+    """Evaluate the student's attempt."""
+    prompt = f"""You are a patient coding tutor reviewing a beginner's work.
+
+Topic: {topic}
+Challenge given: {challenge}
+Student's attempt:
+{student_answer}
+
+Give feedback in exactly this format:
+
+FEEDBACK:
+[2-3 sentences: what they did right, what needs fixing, be encouraging]
+
+SOLUTION:
+[The clean, correct solution with brief comments]
+
+If their answer was correct or close enough, say so clearly."""
+    return ask_model(prompt)
+
+
+def open_in_editor(challenge: str) -> str:
+    """Open a temp file in the user's editor and return the typed code."""
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="jarvis-answer-", delete=False)
+    tmp.write(f"# Challenge: {challenge}\n# Write your code below, save and close when done.\n\n")
+    tmp.close()
+    editor = os.environ.get("VISUAL", os.environ.get("EDITOR", "nano"))
+    subprocess.run([editor, tmp.name])
+    with open(tmp.name) as f:
+        content = f.read()
+    try:
+        os.unlink(tmp.name)
+    except OSError:
+        pass
+    # Strip the comment header lines
+    lines = [l for l in content.splitlines() if not l.startswith("# Challenge:") and not l.startswith("# Write your")]
+    return "\n".join(lines).strip()
+
+
+def parse_section(text: str, section: str) -> str:
+    """Extract a named section from model output."""
+    lines = text.splitlines()
+    capturing = False
+    result = []
+    for line in lines:
+        if line.strip().upper().startswith(section.upper() + ":"):
+            capturing = True
+            remainder = line.split(":", 1)[1].strip()
+            if remainder:
+                result.append(remainder)
+        elif capturing:
+            # Stop at next ALL-CAPS section header
+            if line.strip() and line.strip().upper() == line.strip() and line.strip().endswith(":"):
+                break
+            elif line.strip().upper().startswith(("EXPLAIN:", "EXAMPLE:", "CHALLENGE:", "FEEDBACK:", "SOLUTION:")):
+                break
+            else:
+                result.append(line)
+    return "\n".join(result).strip()
+
+
+def print_section(label: str, content: str, color: str = RESET):
+    print(f"\n{BOLD}{color}{label}{RESET}")
+    print(wrap(content))
+
+
+def run_lesson(topic: str):
+    os.system("clear")
+    header(f"Jarvis Learn  |  {topic}")
+    print(f"\n  {DIM}Building your lesson plan...{RESET}\n")
+
+    curriculum = get_curriculum(topic)
+
+    print(f"  {BOLD}Your lesson plan:{RESET}")
+    for i, step in enumerate(curriculum, 1):
+        print(f"  {DIM}{i}.{RESET} {step}")
+    print()
+    input(f"  {YELLOW}Press Enter to start →{RESET} ")
+
+    all_steps = []
+    step_num = 0
+
+    for step_num, step_title in enumerate(curriculum, 1):
+        os.system("clear")
+        header(f"Step {step_num}/{len(curriculum)}  |  {step_title}")
+        print(f"\n  {DIM}Loading lesson...{RESET}", end="\r", flush=True)
+
+        lesson = get_lesson_step(topic, step_title, step_num, len(curriculum))
+        all_steps.append(f"### {step_title}\n\n{lesson}")
+
+        explain  = parse_section(lesson, "EXPLAIN")
+        example  = parse_section(lesson, "EXAMPLE")
+        challenge = parse_section(lesson, "CHALLENGE")
+
+        print(" " * 40, end="\r")  # clear loading line
+
+        if explain:
+            print_section("Concept:", explain, CYAN)
+        if example:
+            print_section("Example:", example, GREEN)
+        if challenge:
+            print_section("Challenge:", challenge, YELLOW)
+
+        print(f"\n{DIM}  Options: type code, 'e' open editor, 's' skip, 'h' hint, 'q' quit{RESET}\n")
+
+        while True:
+            # Always reprint the challenge as a reminder before each attempt
+            if challenge:
+                print(f"  {BOLD}{YELLOW}Challenge:{RESET} {challenge.splitlines()[0]}")
+                print()
+
+            try:
+                lines = []
+                print(f"  {YELLOW}Your answer (blank line to submit):{RESET}")
+                while True:
+                    line = input("  ")
+                    if line == "":
+                        break
+                    lines.append(line)
+            except (EOFError, KeyboardInterrupt):
+                print("\n\nSession ended.")
+                save_session(topic, all_steps)
+                return
+
+            student_input = "\n".join(lines).strip()
+
+            if student_input.lower() == "q":
+                print(f"\n  {DIM}Session saved. Come back anytime!{RESET}")
+                save_session(topic, all_steps)
+                return
+
+            if student_input.lower() == "s":
+                print(f"\n  {DIM}Skipped. Moving on.{RESET}")
+                break
+
+            if student_input.lower() == "h":
+                print(f"\n  {DIM}Getting hint...{RESET}", flush=True)
+                hint_prompt = (
+                    f"You are a patient coding tutor helping a beginner.\n"
+                    f"Topic: {topic}\n"
+                    f"Step title: {step_title}\n"
+                    f"The challenge the student is working on:\n{challenge}\n\n"
+                    f"Give exactly one short sentence (under 15 words) as a hint that points them "
+                    f"toward the solution without giving it away. The hint must be directly about "
+                    f"the challenge above — do not give a generic tip."
+                )
+                hint = ask_model(hint_prompt)
+                print(f"  {CYAN}Hint: {hint}{RESET}\n")
+                continue
+
+            if student_input.lower() == "e":
+                print(f"\n  {DIM}Opening editor...{RESET}")
+                student_input = open_in_editor(challenge)
+                if not student_input:
+                    print(f"  {DIM}(empty — nothing to submit){RESET}\n")
+                    continue
+                print(f"\n  {DIM}Code from editor:{RESET}")
+                print(wrap(student_input))
+                print()
+
+            if not student_input:
+                print(f"  {DIM}(enter your code, 'e' for editor, or 's' to skip){RESET}")
+                continue
+
+            # Get feedback
+            print(f"\n  {DIM}Checking your answer...{RESET}", end="\r", flush=True)
+            feedback_raw = get_feedback(topic, challenge, student_input)
+            feedback = parse_section(feedback_raw, "FEEDBACK")
+            solution = parse_section(feedback_raw, "SOLUTION")
+
+            print(" " * 40, end="\r")
+            if feedback:
+                print_section("Feedback:", feedback, GREEN)
+            if solution:
+                print_section("Solution:", solution, CYAN)
+
+            print()
+            resp = input(f"  {YELLOW}Try again? [y/N] {RESET}").strip().lower()
+            if resp != "y":
+                break
+
+        if step_num < len(curriculum):
+            input(f"\n  {YELLOW}Press Enter for Step {step_num + 1} →{RESET} ")
+
+    # Final summary
+    os.system("clear")
+    header(f"Lesson Complete  |  {topic}")
+    print(f"\n  {GREEN}{BOLD}Great work! You've covered all {len(curriculum)} steps.{RESET}\n")
+
+    saved = save_session(topic, all_steps)
+    print(f"  {DIM}Session saved to: {saved}{RESET}\n")
+
+    print(f"  {BOLD}What you learned:{RESET}")
+    for i, step in enumerate(curriculum, 1):
+        print(f"  {GREEN}✓{RESET} {step}")
+
+    print(f"\n  {DIM}Next: try 'Jarvis code' to build something using these skills.{RESET}\n")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(f"{BOLD}Usage:{RESET} Jarvis learn \"topic\"")
+        print()
+        print("Examples:")
+        print("  Jarvis learn \"Python for loops\"")
+        print("  Jarvis learn \"bash scripting basics\"")
+        print("  Jarvis learn \"Python functions\"")
+        print("  Jarvis learn \"reading and writing files in Python\"")
+        sys.exit(1)
+
+    topic = " ".join(sys.argv[1:])
+    run_lesson(topic)
+
+
+if __name__ == "__main__":
+    main()

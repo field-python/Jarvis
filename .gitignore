@@ -1,0 +1,44 @@
+# ── sensitive config ──────────────────────────────────────────────────────────
+config/groq.conf
+config/location.conf
+config/cloud-mode
+config/fast-mode
+config/groq-mode
+config/onboarding-done
+config/wikipedia.conf
+config/vast.conf
+
+# ── personal data ─────────────────────────────────────────────────────────────
+memory/user-memory.md
+notes/personal-notes/
+notes/voice-sessions/
+notes/saved-answers/
+notes/lessons/
+notes/web-cache/
+
+# ── large archive content (users build their own) ─────────────────────────────
+notes/generated/
+notes/coding/
+pages/
+
+# ── semantic search index (rebuilt locally) ───────────────────────────────────
+chroma_db/
+
+# ── cache ─────────────────────────────────────────────────────────────────────
+cache/
+
+# ── python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# ── generated code output ─────────────────────────────────────────────────────
+jarvis-code/
+
+# ── misc ──────────────────────────────────────────────────────────────────────
+*.log
+.DS_Store
+*.tmp

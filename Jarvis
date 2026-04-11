@@ -1,0 +1,594 @@
+#!/usr/bin/env bash
+# Jarvis — canonical launcher (lives on ARCHIVE drive)
+# ~/Jarvis is a thin stub that finds the drive and execs this file.
+
+JARVIS_BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+venv_python="${JARVIS_VENV:-$HOME/.jarvis-venv}/bin/python"
+
+# Auto-recreate Jarvis model if missing
+if ! ollama list 2>/dev/null | grep -q "^Jarvis"; then
+  echo "Jarvis model not found — rebuilding from Modelfile..."
+  ollama create Jarvis -f "$JARVIS_BASE/Jarvis.Modelfile"
+  echo "Done. Continuing..."
+fi
+
+# First-run onboarding
+_onboard_done="$JARVIS_BASE/config/onboarding-done"
+_location_conf="$JARVIS_BASE/config/location.conf"
+if [[ ! -f "$_onboard_done" ]]; then
+  if [[ ! -f "$_location_conf" ]]; then
+    exec "$venv_python" "$JARVIS_BASE/scripts/onboarding.py" "$JARVIS_BASE" "$@"
+  else
+    touch "$_onboard_done"
+  fi
+fi
+
+# Apply fast mode if enabled
+_fast_flag="$JARVIS_BASE/config/fast-mode"
+_fast_mode=0
+[[ -f "$_fast_flag" ]] && _fast_mode=1
+
+_cloud_flag="$JARVIS_BASE/config/cloud-mode"
+_cloud_mode=0
+if [[ -f "$_cloud_flag" ]]; then
+  _cloud_mode=1
+  export OLLAMA_HOST="127.0.0.1:11435"
+  export JARVIS_MODEL="qwen3:8b"
+fi
+
+_groq_flag="$JARVIS_BASE/config/groq-mode"
+_groq_mode=0
+if [[ -f "$_groq_flag" ]]; then
+  _groq_mode=1
+  export JARVIS_BACKEND="groq"
+  export JARVIS_MODEL="llama-3.3-70b-versatile"
+fi
+
+mode="${1:-}"
+mode="$(printf '%s' "$mode" | tr '[:upper:]' '[:lower:]')"
+
+case "$mode" in
+  help|--help|-h|"")
+    _fast_label="OFF"
+    [[ -f "$JARVIS_BASE/config/fast-mode" ]] && _fast_label="ON"
+    _cloud_label="OFF"
+    [[ -f "$JARVIS_BASE/config/cloud-mode" ]] && _cloud_label="ON"
+    _groq_label="OFF"
+    [[ -f "$JARVIS_BASE/config/groq-mode" ]] && _groq_label="ON"
+    _location="$(grep -v '^\s*#' "$JARVIS_BASE/config/location.conf" 2>/dev/null | head -1 | tr -d '\n' || echo "Not set")"
+    cat <<EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Jarvis  |  Offline AI Assistant
+  Location: $_location  |  Fast: $_fast_label  |  Cloud: $_cloud_label  |  Groq: $_groq_label
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ASK
+  Jarvis "question"              Ask anything — full answer with archive
+  Jarvis brief "question"        Short answer, no archive (one-off fast query)
+  Jarvis detailed "question"     In-depth answer with steps and context
+  Jarvis cite "question"         Answer with archive sources listed
+  Jarvis groq "question"         Ask via Groq cloud (llama-3.3-70b — fast, no GPU needed)
+  Jarvis cloud "question"        Ask via cloud RTX 4090 (qwen3:8b — needs SSH tunnel)
+  Jarvis code "task"             Generate code — beginner-friendly
+  Jarvis learn "topic"           Step-by-step interactive coding lesson
+  Jarvis language                Language hub — learn, translate, phrases (10 languages)
+  Jarvis note "text"             Save a quick note
+  Jarvis note                    Open editor for a longer note
+  Jarvis notes                   View today's notes
+  Jarvis notes 2026-04-09        View notes from a specific date
+
+  CONVERSATION
+  Jarvis hello                   Start a conversation (remembers context)
+  Jarvis chat                    Same as hello
+  Jarvis voice                   Wake-word voice mode (Hey Jarvis)
+  Jarvis cloud-voice             Voice mode powered by cloud RTX 4090 (needs SSH tunnel)
+
+  SEARCH
+  Jarvis wiki "topic"            Full Wikipedia lookup — text in terminal, photos in browser
+  Jarvis search "keyword"        Keyword search the archive
+  Jarvis find "topic"            Semantic search — finds related archive notes
+  Jarvis list                    List all topics in the archive
+
+  SETTINGS
+  Jarvis fast                    Toggle fast mode ON/OFF  (currently: $_fast_label)
+  Jarvis groq-on                 Route ALL commands to Groq cloud (currently: $_groq_label)
+  Jarvis groq-off                Switch back to local model
+  Jarvis groq-key YOUR_KEY       Save your Groq API key
+  Jarvis cloud-on                Route ALL commands to cloud RTX 4090 (needs tunnel)
+  Jarvis cloud-off               Switch back to local model
+  Jarvis set-location "City, ST" Set your home region for location context
+  Jarvis remember "fact"         Save a personal fact to Jarvis memory
+  Jarvis remember                View all saved memory
+
+  CONTENT & UPDATES
+  Jarvis news [category]         Headlines (world/tech/sports/entertainment)
+  Jarvis weather [location]      Current weather interpreted by Jarvis
+  Jarvis timer 1h                Countdown timer with spoken alerts (1h, 10m, 30s)
+  Jarvis daily                   Morning briefing: weather + news spoken aloud
+  Jarvis skill                   Skill of the day — one practical skill to learn
+  Jarvis skill [category]        Skill from a specific category (survival, cooking, etc.)
+  Jarvis firstaid "topic"        Offline first aid reference (burns, bleeding, hypothermia...)
+  Jarvis recipe "search"         Search saved recipes
+  Jarvis recipe list             List all recipes by category
+  Jarvis recipe add              Add your own recipe
+  Jarvis recipe suggest "..."    Suggest a meal from ingredients you have
+  Jarvis web "question"          Search the web and answer (saves results offline)
+  Jarvis update                  Fetch current news and refresh pages
+  Jarvis fetch "url" "name"      Save a webpage to the archive
+  Jarvis download-regions        Download regional content (states/provinces)
+  Jarvis download-coding         Download coding reference content
+  Jarvis download-general        Download general knowledge (movies, science, sports...)
+  Jarvis rebuild-index           Rebuild semantic search after new downloads
+  Jarvis pdf                     Re-index PDFs in the archive
+
+  SETUP
+  Jarvis install-voice           One-time setup for voice (Whisper + Piper)
+  Jarvis onboard                 Re-run first-time setup wizard
+  Jarvis cache-clear             Clear cached answers (forces fresh responses)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EOF
+    exit 0
+    ;;
+  cloud)
+    shift
+    _cloud_host="127.0.0.1:11435"
+    _cloud_model="qwen3:8b"
+    if ! curl -sf "http://$_cloud_host/api/tags" >/dev/null 2>&1; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  Jarvis Cloud  |  Not Connected"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo ""
+      echo "  Cloud GPU is not reachable."
+      echo "  Start the SSH tunnel first (in a separate terminal):"
+      echo ""
+      echo "    ssh -p 37001 root@85.218.235.6 \\"
+      echo "        -L 11435:localhost:11434 \\"
+      echo "        -i ~/.ssh/jarvis_vast"
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 1
+    fi
+    echo "  [Cloud RTX 4090 — qwen3:8b]"
+    sub="${1:-}"
+    sub="$(printf '%s' "$sub" | tr '[:upper:]' '[:lower:]')"
+    case "$sub" in
+      brief|detailed|cite)
+        shift
+        exec env JARVIS_MODEL="$_cloud_model" OLLAMA_HOST="$_cloud_host" JARVIS_MODE="$sub" \
+          "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+        ;;
+      *)
+        exec env JARVIS_MODEL="$_cloud_model" OLLAMA_HOST="$_cloud_host" \
+          "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+        ;;
+    esac
+    ;;
+  groq)
+    shift
+    _groq_model="llama-3.3-70b-versatile"
+    _groq_key_file="$JARVIS_BASE/config/groq.conf"
+    if [[ ! -f "$_groq_key_file" ]] || [[ -z "$(cat "$_groq_key_file" 2>/dev/null)" ]]; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  Jarvis Groq  |  No API Key"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo ""
+      echo "  Save your key first:"
+      echo "    Jarvis groq-key YOUR_API_KEY"
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 1
+    fi
+    echo "  [Groq — $_groq_model]"
+    sub="${1:-}"
+    sub="$(printf '%s' "$sub" | tr '[:upper:]' '[:lower:]')"
+    case "$sub" in
+      brief|detailed|cite)
+        shift
+        exec env JARVIS_BACKEND="groq" JARVIS_MODEL="$_groq_model" JARVIS_MODE="$sub" \
+          "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+        ;;
+      *)
+        exec env JARVIS_BACKEND="groq" JARVIS_MODEL="$_groq_model" \
+          "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+        ;;
+    esac
+    ;;
+  groq-on)
+    _groq_key_file="$JARVIS_BASE/config/groq.conf"
+    if [[ ! -f "$_groq_key_file" ]] || [[ -z "$(cat "$_groq_key_file" 2>/dev/null)" ]]; then
+      echo ""
+      echo "  No Groq API key saved. Add it first:"
+      echo "    Jarvis groq-key YOUR_API_KEY"
+      echo ""
+      exit 1
+    fi
+    touch "$JARVIS_BASE/config/groq-mode"
+    echo "Groq mode ON — all Jarvis commands now use llama-3.3-70b-versatile via Groq."
+    echo "Run 'Jarvis groq-off' to switch back to local."
+    exit 0
+    ;;
+  groq-off)
+    rm -f "$JARVIS_BASE/config/groq-mode"
+    echo "Groq mode OFF — back to local model."
+    exit 0
+    ;;
+  groq-key)
+    shift
+    if [[ $# -lt 1 ]]; then
+      echo "Usage: Jarvis groq-key YOUR_API_KEY"
+      if [[ -f "$JARVIS_BASE/config/groq.conf" ]]; then
+        echo "Key is currently saved (use 'Jarvis groq-key NEW_KEY' to update)."
+      else
+        echo "No key saved yet."
+      fi
+      exit 0
+    fi
+    mkdir -p "$JARVIS_BASE/config"
+    printf '%s\n' "$1" > "$JARVIS_BASE/config/groq.conf"
+    chmod 600 "$JARVIS_BASE/config/groq.conf"
+    echo "Groq API key saved."
+    echo "Use 'Jarvis groq \"question\"' for one-off queries."
+    echo "Use 'Jarvis groq-on' to make Groq the default for all commands."
+    exit 0
+    ;;
+  language|lang)
+    exec "$venv_python" "$JARVIS_BASE/scripts/language.py"
+    ;;
+  code)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/code.py" "$@"
+    ;;
+  learn)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/learn.py" "$@"
+    ;;
+  menu)
+    exec env JARVIS_LAUNCHER="$0" "$venv_python" "$JARVIS_BASE/scripts/menu.py"
+    ;;
+  note)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/note.py" "$@"
+    ;;
+  news)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/news.py" "$@"
+    ;;
+  weather)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/weather.py" "$@"
+    ;;
+  timer)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/timer.py" "$@"
+    ;;
+  daily)
+    exec "$venv_python" "$JARVIS_BASE/scripts/daily.py"
+    ;;
+  skill)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/skill.py" "$@"
+    ;;
+  firstaid|first-aid|fa)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/firstaid.py" "$@"
+    ;;
+  recipe|recipes)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/recipe.py" "$@"
+    ;;
+  wiki|wikipedia)
+    shift
+    if [[ $# -lt 1 ]]; then
+      echo "Usage: Jarvis wiki \"topic\""
+      exit 1
+    fi
+    query="$*"
+    wiki_script="$JARVIS_BASE/scripts/wikipedia-lookup.sh"
+    wiki_conf="$JARVIS_BASE/config/wikipedia.conf"
+    zim_label="Wikipedia"
+    if [[ -f "$wiki_conf" ]]; then
+      zim_path="$(grep -v '^\s*#' "$wiki_conf" | head -1 | tr -d '\n')"
+      zim_label="$(basename "$zim_path" .zim)"
+    fi
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Jarvis Wiki  |  $query"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  Starting Wikipedia server (first time may take a moment)..."
+    result="$(bash "$wiki_script" "$query" 2>/dev/null || true)"
+    if [[ -z "$result" ]]; then
+      echo "  No article found for: $query"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 0
+    fi
+    echo ""
+    echo "$result"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Open full article with photos in browser? (y/n)"
+    read -r _ans
+    if [[ "$_ans" =~ ^[Yy] ]]; then
+      WIKIPEDIA_OPEN=1 bash "$wiki_script" "$query" >/dev/null 2>&1 &
+      echo "  Opening in browser..."
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    exit 0
+    ;;
+  notes)
+    notes_dir="$JARVIS_BASE/notes/personal-notes"
+    if [[ ! -d "$notes_dir" ]] || [[ -z "$(ls "$notes_dir" 2>/dev/null)" ]]; then
+      echo "No notes yet. Try: Jarvis note \"something to remember\""
+      exit 0
+    fi
+    _show_notes() {
+      local file="$1" label="$2"
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  Notes  |  $label"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo ""
+      grep -v '^#' "$file" | sed 's/\*\*\([0-9][0-9]:[0-9][0-9]\)\*\*/  [\1]/'
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    }
+    if [[ $# -ge 2 && "$2" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+      target_file="$notes_dir/$2.md"
+      if [[ -f "$target_file" ]]; then
+        _show_notes "$target_file" "$2"
+      else
+        echo "No notes for $2."
+      fi
+    else
+      today="$(date +%Y-%m-%d)"
+      today_file="$notes_dir/$today.md"
+      if [[ -f "$today_file" ]]; then
+        _show_notes "$today_file" "Today — $today"
+        others="$(ls "$notes_dir"/*.md 2>/dev/null | xargs -I{} basename {} .md | grep -v "^${today}$" | sort -r | head -5 || true)"
+        if [[ -n "$others" ]]; then
+          echo ""
+          echo "  Other dates:"
+          printf '%s\n' "$others" | while read -r d; do echo "    $d  →  Jarvis notes $d"; done
+          echo ""
+        fi
+      else
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  Notes  |  No notes for today"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "  All dates:"
+        ls "$notes_dir"/*.md 2>/dev/null | xargs -I{} basename {} .md | sort -r | while read -r d; do
+          echo "    $d  →  Jarvis notes $d"
+        done || true
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      fi
+    fi
+    ;;
+  web)
+    shift
+    if [[ $# -lt 1 ]]; then
+      echo "Usage: Jarvis web \"topic or question\""
+      exit 1
+    fi
+    query="$*"
+    web_script="$JARVIS_BASE/scripts/web-search.py"
+    generate_script="$JARVIS_BASE/scripts/generate.py"
+    current_date="$("$venv_python" -c "from datetime import datetime; n=datetime.now(); print(f\"{n.strftime('%A, %B')} {n.day}, {n.year}\")")"
+    user_location="$(grep -v '^\s*#' "$JARVIS_BASE/config/location.conf" 2>/dev/null | head -1 | tr -d '\n' || echo "North America")"
+
+    echo "Searching the web..."
+    web_context="$("$venv_python" "$web_script" "$query" 2>/dev/tty || true)"
+
+    if [[ -z "$web_context" ]]; then
+      echo "Could not reach the web. Falling back to archive..."
+      exec env JARVIS_MODE=normal "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$query"
+    fi
+
+    tmp_prompt="$(mktemp /tmp/jarvis-web-XXXXXX.txt)"
+    cat > "$tmp_prompt" <<EOF
+You are Jarvis, an advanced offline AI assistant.
+Today's date: $current_date
+The user's home region is $user_location.
+
+Answer the question using the web search results below as your primary source. Be direct and accurate. Do not tell the user to visit websites.
+
+Question: $query
+
+Web search results:
+$web_context
+EOF
+    "$venv_python" "$generate_script" "Jarvis" "${OLLAMA_HOST:-127.0.0.1:11434}" "$tmp_prompt"
+    rm -f "$tmp_prompt"
+    exit 0
+    ;;
+  ask)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+    ;;
+  brief|detailed|cite)
+    shift
+    exec env JARVIS_MODE="$mode" "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+    ;;
+  search)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/search.py" "$@"
+    ;;
+  find)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/semantic-search.py" "$@"
+    ;;
+  list)
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Jarvis  |  Archive Topics"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    if [[ -d "$JARVIS_BASE/notes/generated" ]]; then
+      ls "$JARVIS_BASE/notes/generated/" | sort | column
+    fi
+    echo ""
+    total_files="$(find "$JARVIS_BASE/notes" -name "*.md" 2>/dev/null | wc -l || echo 0)"
+    total_pages="$(find "$JARVIS_BASE/pages" -name "*.html" 2>/dev/null | wc -l || echo 0)"
+    echo "  $total_files notes  |  $total_pages pages"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    ;;
+  voice)
+    exec "$venv_python" "$JARVIS_BASE/scripts/voice.py"
+    ;;
+  cloud-voice)
+    _cloud_host="127.0.0.1:11435"
+    _cloud_model="qwen3:8b"
+    if ! curl -sf "http://$_cloud_host/api/tags" >/dev/null 2>&1; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  Jarvis Cloud Voice  |  Not Connected"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo ""
+      echo "  Cloud GPU is not reachable."
+      echo "  Start the SSH tunnel first (in a separate terminal):"
+      echo ""
+      echo "    ssh -p 37001 root@85.218.235.6 \\"
+      echo "        -L 11435:localhost:11434 \\"
+      echo "        -i ~/.ssh/jarvis_vast"
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 1
+    fi
+    echo "  [Cloud Voice — RTX 4090 — qwen3:8b]"
+    exec env JARVIS_MODEL="$_cloud_model" OLLAMA_HOST="$_cloud_host" \
+      "$venv_python" "$JARVIS_BASE/scripts/voice.py"
+    ;;
+  install-voice)
+    exec bash "$JARVIS_BASE/scripts/install-voice.sh"
+    ;;
+  chat|hello)
+    if [[ $_fast_mode -eq 1 ]]; then
+      exec env JARVIS_MODEL=Jarvis-fast "$venv_python" "$JARVIS_BASE/scripts/chat.py"
+    else
+      exec "$venv_python" "$JARVIS_BASE/scripts/chat.py"
+    fi
+    ;;
+  save)
+    shift
+    exec env JARVIS_SAVE=1 "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+    ;;
+  cloud-on)
+    _cloud_host="127.0.0.1:11435"
+    if ! curl -sf "http://$_cloud_host/api/tags" >/dev/null 2>&1; then
+      echo ""
+      echo "  Cloud GPU not reachable — start the SSH tunnel first:"
+      echo ""
+      echo "    ssh -p 37001 root@85.218.235.6 \\"
+      echo "        -L 11435:localhost:11434 \\"
+      echo "        -i ~/.ssh/jarvis_vast"
+      echo ""
+      exit 1
+    fi
+    touch "$JARVIS_BASE/config/cloud-mode"
+    echo "Cloud mode ON — all Jarvis commands now use the RTX 4090 (qwen3:8b)."
+    echo "Run 'Jarvis cloud-off' to switch back to local."
+    exit 0
+    ;;
+  cloud-off)
+    rm -f "$JARVIS_BASE/config/cloud-mode"
+    echo "Cloud mode OFF — back to local model."
+    exit 0
+    ;;
+  fast)
+    flag="$JARVIS_BASE/config/fast-mode"
+    if [[ -f "$flag" ]]; then
+      rm -f "$flag"
+      echo "Fast mode OFF — Jarvis back to full mode."
+    else
+      touch "$flag"
+      echo "Fast mode ON — short answers from common knowledge. Run 'Jarvis fast' again to turn off."
+    fi
+    exit 0
+    ;;
+  remember)
+    shift
+    if [[ $# -lt 1 ]]; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  Jarvis  |  Memory"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo ""
+      if [[ -f "$JARVIS_BASE/memory/user-memory.md" ]]; then
+        grep -v '^\s*#\|^\s*<!--\|^\s*-->' "$JARVIS_BASE/memory/user-memory.md" \
+          | grep -v '^\s*$' || echo "  (empty)"
+      else
+        echo "  (no memory saved yet)"
+      fi
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 0
+    fi
+    stamp="$(date +%Y-%m-%d)"
+    printf '- [%s] %s\n' "$stamp" "$*" >> "$JARVIS_BASE/memory/user-memory.md"
+    echo "Remembered: $*"
+    exit 0
+    ;;
+  set-location)
+    shift
+    if [[ $# -lt 1 ]]; then
+      echo "Usage: Jarvis set-location \"City, State, Country\""
+      echo "Current: $(cat "$JARVIS_BASE/config/location.conf" 2>/dev/null || echo "Not set")"
+      exit 0
+    fi
+    printf '%s\n' "$*" > "$JARVIS_BASE/config/location.conf"
+    echo "Location set to: $*"
+    exit 0
+    ;;
+  download-regions)
+    shift
+    target="${1:-all}"
+    exec "$venv_python" \
+      "$JARVIS_BASE/scripts/download-region-content.py" "$target" "${@:2}"
+    ;;
+  download-coding)
+    shift
+    target="${1:-all}"
+    exec "$venv_python" \
+      "$JARVIS_BASE/scripts/download-coding-content.py" "$target" "${@:2}"
+    ;;
+  download-general)
+    shift
+    target="${1:-all}"
+    exec "$venv_python" \
+      "$JARVIS_BASE/scripts/download-general-content.py" "$target" "${@:2}"
+    ;;
+  rebuild-index)
+    echo "Rebuilding semantic index (this takes a few minutes)..."
+    exec "$venv_python" "$JARVIS_BASE/scripts/build-index.py"
+    ;;
+  update)
+    exec "$venv_python" "$JARVIS_BASE/scripts/auto_update.py"
+    ;;
+  fetch)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/fetch_url.py" "$@"
+    ;;
+  pdf)
+    exec bash "$JARVIS_BASE/scripts/refresh-pdf-index.sh"
+    ;;
+  cache-clear)
+    rm -rf "$JARVIS_BASE/cache/qa"
+    echo "Answer cache cleared."
+    exit 0
+    ;;
+  onboard)
+    rm -f "$JARVIS_BASE/config/onboarding-done"
+    exec "$venv_python" "$JARVIS_BASE/scripts/onboarding.py" "$JARVIS_BASE"
+    ;;
+  *)
+    if [[ $_fast_mode -eq 1 ]]; then
+      exec env JARVIS_MODE=brief JARVIS_MODEL=Jarvis-fast "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+    else
+      exec "$venv_python" "$JARVIS_BASE/scripts/ask.py" "$@"
+    fi
+    ;;
+esac
