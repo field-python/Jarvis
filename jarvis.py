@@ -161,8 +161,8 @@ def do_help():
   Jarvis cloud-on                Route all commands to cloud RTX 4090
   Jarvis cloud-off               Switch back to local model
   Jarvis set-location "City, ST" Set your home region for location context
-  Jarvis remember "fact"         Save a personal fact to Jarvis memory
-  Jarvis remember                View all saved memory
+  Jarvis remember "about myself" Tell Jarvis something about you to remember
+  Jarvis remember                View everything Jarvis knows about you
 
   CONTENT & UPDATES
   Jarvis news [category]         Headlines (world/tech/sports/entertainment)
@@ -255,20 +255,21 @@ def do_list():
 def do_remember(args):
     mem = MEMORY_DIR / "user-memory.md"
     if not args:
-        print(f"\n{HR}\n  Jarvis  |  Memory\n{HR}\n")
+        # View mode
+        print(f"\n{HR}\n  Jarvis  |  What I Know About You\n{HR}\n")
         if mem.exists():
             lines = [l for l in mem.read_text(encoding="utf-8").splitlines()
                      if l.strip() and not l.strip().startswith(("#", "<!--"))]
-            print("\n".join(f"  {l}" for l in lines) if lines else "  (empty)")
+            print("\n".join(f"  {l}" for l in lines) if lines else "  (nothing saved yet)")
         else:
-            print("  (no memory saved yet)")
+            print("  (nothing saved yet)")
         print(f"\n{HR}")
         return
-    fact = " ".join(args)
+    fact = " ".join(args).strip()
     MEMORY_DIR.mkdir(parents=True, exist_ok=True)
     with open(mem, "a", encoding="utf-8") as f:
         f.write(f"- [{datetime.now().strftime('%Y-%m-%d')}] {fact}\n")
-    print(f"Remembered: {fact}")
+    print(f"  Got it — I'll remember that.")
 
 
 def do_set_location(args):

@@ -34,7 +34,7 @@ MENU = [
     # ── Notes & Memory ────────────────────────────────────────────────────────
     ("Save a note",             ["note"],         True,  "Note: "),
     ("View today's notes",      ["notes"],        False, ""),
-    ("Remember a fact",         ["remember"],     True,  "Fact to remember: "),
+    ("Tell Jarvis about yourself", ["remember"],   True,  "Tell Jarvis: "),
 
     # ── Recipes ───────────────────────────────────────────────────────────────
     ("Browse recipes",          ["recipe", "list"],  False, ""),
@@ -170,7 +170,7 @@ def draw_menu(items, selected):
 
 
 # Commands that loop — keep asking questions instead of returning to menu
-ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki"}
+ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember"}
 
 
 def run_command(label, cmd_args, needs_input, prompt):
