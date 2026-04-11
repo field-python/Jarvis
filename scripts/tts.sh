@@ -42,4 +42,4 @@ clean_text="$(printf '%s' "$text" \
 
 printf '%s' "$clean_text" \
   | "$piper_bin" --model "$model" --output_raw 2>/dev/null \
-  | aplay -r 22050 -f S16_LE -t raw -q 2>/dev/null
+  | aplay -D pulse -r 22050 -f S16_LE -t raw -q 2>/dev/null
