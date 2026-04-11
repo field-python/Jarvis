@@ -490,9 +490,15 @@ def main():
     elif cmd == "list":
         do_list()
     elif cmd == "voice":
-        run_py("voice.py")
+        if rest and rest[0] == "--local":
+            run_py("voice.py", extra_env={"JARVIS_BACKEND": "local"})
+        else:
+            run_py("voice.py")
     elif cmd in ("convo", "conversation"):
-        run_py("voice.py", "--convo")
+        if rest and rest[0] == "--local":
+            run_py("voice.py", "--convo", extra_env={"JARVIS_BACKEND": "local"})
+        else:
+            run_py("voice.py", "--convo")
     elif cmd == "install-voice":
         subprocess.run(["bash", str(SCRIPTS / "install-voice.sh")])
     elif cmd in ("chat", "hello"):

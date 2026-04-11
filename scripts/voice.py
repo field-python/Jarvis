@@ -56,6 +56,16 @@ note_script           = str(base_dir / "scripts" / "note.sh")
 semantic_search_script = str(base_dir / "scripts" / "semantic-search.py")
 session_log_dir       = base_dir / "notes" / "voice-sessions"
 
+# Voice mode defaults to Groq if a key is saved — much faster for conversation.
+# Override with JARVIS_BACKEND=local to force Ollama.
+_groq_conf = base_dir / "config" / "groq.conf"
+_groq_mode_flag = base_dir / "config" / "groq-mode"
+_force_local = os.environ.get("JARVIS_BACKEND", "").lower() == "local"
+
+if not _force_local and _groq_conf.exists() and _groq_conf.read_text().strip():
+    os.environ.setdefault("JARVIS_BACKEND", "groq")
+    os.environ.setdefault("JARVIS_MODEL",   "llama-3.3-70b-versatile")
+
 model = os.environ.get("JARVIS_MODEL", "Jarvis")
 host  = os.environ.get("OLLAMA_HOST",  "127.0.0.1:11434")
 
