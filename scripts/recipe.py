@@ -20,19 +20,18 @@ RESET  = "\033[0m"
 
 def getch():
     import select as _sel
+    import os as _os
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
-        ch = sys.stdin.read(1)
+        ch = _os.read(fd, 1).decode("utf-8", errors="replace")
         if ch == "\x1b":
-            r, _, _ = _sel.select([sys.stdin], [], [], 0.05)
+            r, _, _ = _sel.select([fd], [], [], 0.1)
             if r:
-                ch2 = sys.stdin.read(1)
-                r2, _, _ = _sel.select([sys.stdin], [], [], 0.05)
-                ch3 = sys.stdin.read(1) if r2 else ""
-                return f"\x1b{ch2}{ch3}"
-            return "\x1b"  # plain ESC
+                rest = _os.read(fd, 2).decode("utf-8", errors="replace")
+                return "\x1b" + rest
+            return "\x1b"
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -109,41 +108,82 @@ def browse_recipes(category_filter=None):
         label = CATEGORIES.get(cat, cat.title())
         items.append((title, label, f))
 
-    selected = 0
+    selected  = 0
+    view_top  = 0   # index of first visible item
 
-    def draw(sel):
-        os.system("clear")
-        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
-        print(f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}")
-        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
-        print()
-        for i, (title, cat_label, _) in enumerate(items):
+    def draw(sel, top):
+        try:
+            rows, _ = os.get_terminal_size()
+        except OSError:
+            rows = 24
+        visible = max(4, rows - 10)  # conservative margin so list never overflows
+        # Buffer all output then write at once — eliminates flicker
+        buf = "\033[2J\033[H"   # clear screen + cursor home
+        buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
+        buf += f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}\n"
+        buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
+        buf += "\n"
+        for i in range(top, min(top + visible, len(items))):
+            title, cat_label, _ = items[i]
             if i == sel:
-                print(f"  {BOLD}{GREEN}▶  {title:<40}{RESET}  {GREEN}{DIM}[{cat_label}]{RESET}")
+                buf += f"  {BOLD}{GREEN}▶  {title:<40}{RESET}  {GREEN}{DIM}[{cat_label}]{RESET}\n"
             else:
-                print(f"  {DIM}   {title:<40}  [{cat_label}]{RESET}")
-        print()
-        print(f"  {DIM}↑↓ to select  |  Enter to view  |  Q or ESC to exit{RESET}")
-        print()
+                buf += f"  {DIM}   {title:<40}  [{cat_label}]{RESET}\n"
+        buf += "\n"
+        scroll_hint = f"  {DIM}({top+1}-{min(top+visible, len(items))} of {len(items)})  " if len(items) > visible else "  "
+        buf += f"{scroll_hint}↑↓ select  |  Enter view  |  / or S search  |  Q/ESC exit{RESET}\n"
+        sys.stdout.write(buf)
+        sys.stdout.flush()
+        return visible
 
     while True:
-        draw(selected)
+        visible = draw(selected, view_top)
         key = getch()
 
-        if key in ("q", "Q", "\x03") or key.startswith("\x1b") and len(key) == 1:
-            # Q, Ctrl+C, or plain ESC
-            os.system("clear")
+        if key in ("q", "Q", "\x03") or (key.startswith("\x1b") and len(key) == 1):
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.flush()
             return
         elif key == "\x1b[A":   # up
             selected = (selected - 1) % len(items)
+            if selected < view_top:
+                view_top = selected
+            elif selected == len(items) - 1:   # wrapped to bottom
+                view_top = max(0, len(items) - visible)
         elif key == "\x1b[B":   # down
             selected = (selected + 1) % len(items)
+            if selected >= view_top + visible:
+                view_top = selected - visible + 1
+            elif selected == 0:                # wrapped to top
+                view_top = 0
+        elif key in ("/", "s", "S"):           # search inside browser
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.flush()
+            try:
+                query = input("  Search recipes: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                continue
+            if query:
+                results = []
+                words = query.lower().split()
+                for title, label, filepath in items:
+                    text = filepath.read_text(encoding="utf-8").lower()
+                    if any(w in text for w in words):
+                        results.append((title, label, filepath))
+                if results:
+                    items[:] = results
+                    selected = 0
+                    view_top = 0
+                else:
+                    print(f"  No results for '{query}'. Press any key...")
+                    getch()
         elif key in ("\r", "\n"):
             display_recipe(items[selected][2])
             print()
+            print(f"  {DIM}Press any key to return to list...{RESET}", end="", flush=True)
             try:
-                input(f"  {DIM}Press Enter to return to recipe list...{RESET}")
-            except (EOFError, KeyboardInterrupt):
+                getch()
+            except KeyboardInterrupt:
                 return
 
 
@@ -292,34 +332,11 @@ def suggest_recipe(ingredients):
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 
-def browse_interactive(category_filter=None):
-    """Show recipe list then let the user search/view without going back to menu."""
-    while True:
-        os.system("clear")
-        list_recipes(category_filter)
-        print()
-        print("  ────────────────────────────────────────")
-        try:
-            query = input("  Search recipes (or Enter to exit): ").strip()
-        except (EOFError, KeyboardInterrupt):
-            return
-        if not query:
-            return
-
-        os.system("clear")
-        search_recipes(query)
-        print()
-        try:
-            input("  Press Enter to go back to the list...")
-        except (EOFError, KeyboardInterrupt):
-            return
-
-
 # ── main ──────────────────────────────────────────────────────────────────────
 arg = sys.argv[1].lower().strip() if len(sys.argv) > 1 else ""
 
 if not arg or arg == "list":
-    browse_interactive()
+    browse_recipes()
 
 elif arg == "--list":
     list_recipes()

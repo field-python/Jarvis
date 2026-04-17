@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>2048 — Jarvis</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d1117; color: #c8d8e8; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+.header { width: 100%; background: #0d1a2a; border-bottom: 1px solid #1a2e4a; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+.header a { color: #4a9eff; text-decoration: none; font-size: 0.85rem; }
+.header h1 { color: #4a9eff; font-size: 1rem; letter-spacing: 2px; flex: 1; }
+.top { display: flex; align-items: center; gap: 16px; padding: 14px 0 10px; }
+.stat { background: #0d1a2a; border: 1px solid #1a2e4a; border-radius: 8px; padding: 8px 16px; text-align: center; min-width: 70px; }
+.stat .val { color: #4a9eff; font-size: 1.2rem; font-weight: 700; }
+.stat .lbl { color: #445; font-size: 0.65rem; letter-spacing: 1px; }
+#newBtn { background: #4a9eff; color: #0d1117; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+#grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; background: #0d1a2a; border: 1px solid #1a2e4a; border-radius: 10px; padding: 10px; touch-action: none; }
+.cell {
+    width: calc((min(96vw, 380px) - 68px) / 4);
+    height: calc((min(96vw, 380px) - 68px) / 4);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    font-size: clamp(0.8rem, 4vw, 1.4rem);
+    transition: background 0.1s;
+}
+.c0    { background: #1a2535; color: transparent; }
+.c2    { background: #1e3a5f; color: #c8d8e8; }
+.c4    { background: #1a4a6f; color: #c8d8e8; }
+.c8    { background: #4a9eff; color: #0d1117; }
+.c16   { background: #3a8ef0; color: #0d1117; }
+.c32   { background: #ff6b4a; color: #fff; }
+.c64   { background: #ff4a2a; color: #fff; }
+.c128  { background: #ffd700; color: #0d1117; }
+.c256  { background: #ffb800; color: #0d1117; }
+.c512  { background: #ff8c00; color: #fff; }
+.c1024 { background: #ff6600; color: #fff; }
+.c2048 { background: #ff4500; color: #fff; font-size: clamp(0.7rem,3vw,1.1rem); }
+.chigh { background: #a000ff; color: #fff; font-size: clamp(0.6rem,2.5vw,0.9rem); }
+#winmsg { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(13,17,23,0.95); border:1px solid #4a9eff; border-radius:12px; padding:24px 32px; text-align:center; z-index:10; }
+#winmsg h2 { color:#4a9eff; margin-bottom:8px; }
+#winmsg p { color:#8ab4d4; margin-bottom:16px; }
+#winmsg button { background:#4a9eff; color:#0d1117; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer; margin:4px; }
+</style>
+</head>
+<body>
+<div class="header"><a href="/games">← Games</a><h1>2048</h1></div>
+<div class="top">
+    <div class="stat"><div class="val" id="score">0</div><div class="lbl">SCORE</div></div>
+    <div class="stat"><div class="val" id="best">0</div><div class="lbl">BEST</div></div>
+    <button id="newBtn" onclick="newGame()">New Game</button>
+</div>
+<div id="grid"></div>
+<div id="winmsg">
+    <h2 id="win-title">YOU WIN!</h2>
+    <p id="win-sub">You reached 2048!</p>
+    <button onclick="keepGoing()">Keep Going</button>
+    <button onclick="newGame()">New Game</button>
+</div>
+<script>
+let board, score, best=0, won=false, keepgoing=false;
+const grid = document.getElementById('grid');
+
+function newGame() {
+    document.getElementById('winmsg').style.display='none';
+    board = Array.from({length:4},()=>Array(4).fill(0));
+    score=0; won=false; keepgoing=false;
+    addTile(); addTile(); render();
+}
+function keepGoing() { keepgoing=true; document.getElementById('winmsg').style.display='none'; }
+
+function addTile() {
+    const empty=[];
+    board.forEach((row,r)=>row.forEach((v,c)=>{ if(!v) empty.push([r,c]); }));
+    if(!empty.length) return;
+    const [r,c]=empty[Math.floor(Math.random()*empty.length)];
+    board[r][c]=Math.random()<0.9?2:4;
+}
+
+function render() {
+    grid.innerHTML='';
+    board.forEach(row=>row.forEach(v=>{
+        const d=document.createElement('div');
+        d.className='cell '+(v===0?'c0':v>=4096?'chigh':'c'+v);
+        d.textContent=v||'';
+        grid.appendChild(d);
+    }));
+    document.getElementById('score').textContent=score.toLocaleString();
+    if(score>best){ best=score; document.getElementById('best').textContent=best.toLocaleString(); }
+}
+
+function slide(row) {
+    let r=row.filter(v=>v), added=false, pts=0;
+    for(let i=0;i<r.length-1;i++) {
+        if(r[i]===r[i+1]&&!added){ pts+=r[i]*2; r[i]*=2; r.splice(i+1,1); added=true; } else added=false;
+    }
+    while(r.length<4) r.push(0);
+    return {row:r,pts};
+}
+
+function move(dir) {
+    let moved=false;
+    const b=board.map(r=>[...r]);
+    if(dir===0) board=board.map(row=>{ const {row:nr,pts}=slide(row); score+=pts; if(nr.join()!==row.join())moved=true; return nr; });
+    else if(dir===1) board=board.map(row=>{ const rev=[...row].reverse(); const {row:nr,pts}=slide(rev); score+=pts; const f=nr.reverse(); if(f.join()!==row.join())moved=true; return f; });
+    else if(dir===2) {
+        for(let c=0;c<4;c++){ const col=board.map(r=>r[c]); const {row:nr,pts}=slide(col); score+=pts; nr.forEach((v,r)=>{ if(board[r][c]!==v)moved=true; board[r][c]=v; }); }
+    } else {
+        for(let c=0;c<4;c++){ const col=board.map(r=>r[c]).reverse(); const {row:nr,pts}=slide(col); score+=pts; nr.reverse().forEach((v,r)=>{ if(board[r][c]!==v)moved=true; board[r][c]=v; }); }
+    }
+    if(moved) { addTile(); render(); checkEnd(); }
+}
+
+function checkEnd() {
+    if(!won&&!keepgoing&&board.some(r=>r.includes(2048))) {
+        won=true;
+        document.getElementById('win-title').textContent='YOU WIN!';
+        document.getElementById('win-sub').textContent='Score: '+score.toLocaleString();
+        document.getElementById('winmsg').style.display='block';
+        return;
+    }
+    const empty=board.some(r=>r.includes(0));
+    if(empty) return;
+    const canMove=board.some((row,r)=>row.some((v,c)=>(c<3&&v===board[r][c+1])||(r<3&&v===board[r+1][c])));
+    if(!canMove) {
+        document.getElementById('win-title').textContent='GAME OVER';
+        document.getElementById('win-sub').textContent='Score: '+score.toLocaleString();
+        document.getElementById('winmsg').querySelector('button').style.display='none';
+        document.getElementById('winmsg').style.display='block';
+    }
+}
+
+document.addEventListener('keydown',e=>{
+    const map={'ArrowLeft':0,'ArrowRight':1,'ArrowUp':2,'ArrowDown':3};
+    if(map[e.key]!==undefined){ e.preventDefault(); move(map[e.key]); }
+});
+
+let sx,sy;
+grid.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;e.preventDefault();},{passive:false});
+grid.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>Math.abs(dy)){ move(dx>0?1:0); } else { move(dy>0?3:2); }
+    e.preventDefault();
+},{passive:false});
+
+newGame();
+</script>
+</body>
+</html>

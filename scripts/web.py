@@ -7,6 +7,7 @@ Access from any device on the same WiFi network (or Tailscale).
 
 import json
 import os
+import re
 import random
 import secrets
 import socket
@@ -14,6 +15,62 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+
+
+def _ensure_ssl_cert(config_dir):
+    """Generate a self-signed cert (with SAN) and return an ssl.SSLContext, or None."""
+    import ssl
+    ssl_dir  = config_dir / "ssl"
+    cert     = ssl_dir / "cert.pem"
+    key      = ssl_dir / "key.pem"
+    san_mark = ssl_dir / ".san-ok"   # sentinel: cert was built with SAN
+
+    need_regen = not (cert.exists() and key.exists() and san_mark.exists())
+    if need_regen:
+        ssl_dir.mkdir(parents=True, exist_ok=True)
+        # Remove old cert so we start clean
+        cert.unlink(missing_ok=True)
+        key.unlink(missing_ok=True)
+        san_mark.unlink(missing_ok=True)
+
+        local_ip = get_local_ip()
+        # Collect all IPs this machine is reachable on (WiFi + Tailscale + loopback)
+        all_ips = {local_ip, "127.0.0.1"}
+        try:
+            import socket as _sock
+            for info in _sock.getaddrinfo(_sock.gethostname(), None):
+                addr = info[4][0]
+                if ":" not in addr:   # skip IPv6
+                    all_ips.add(addr)
+        except Exception:
+            pass
+        san = ",".join(f"IP:{ip}" for ip in sorted(all_ips)) + ",DNS:localhost"
+        try:
+            subprocess.run(
+                [
+                    "openssl", "req", "-x509", "-newkey", "rsa:2048",
+                    "-keyout", str(key),
+                    "-out",    str(cert),
+                    "-days",   "3650",
+                    "-nodes",
+                    "-subj",   "/CN=jarvis.local",
+                    "-addext", f"subjectAltName={san}",
+                ],
+                check=True, capture_output=True,
+            )
+            san_mark.write_text(san)
+        except Exception as e:
+            print(f"  SSL cert generation failed: {e}")
+            print("  Running on plain HTTP — microphone may not work on phone.")
+            return None
+
+    try:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(str(cert), str(key))
+        return ctx
+    except Exception as e:
+        print(f"  SSL load failed: {e}")
+        return None
 
 try:
     from flask import (Flask, Response, redirect, render_template,
@@ -50,6 +107,17 @@ COMMANDS = {
     "note":           ("note.py",             [],            {}),
     "recipe-list":    ("recipe.py",           ["--list"],    {}),
     "recipe-suggest": ("recipe.py",           ["suggest"],   {}),
+    # New commands
+    "symptom":        ("symptom.py",          [],            {}),
+    "brainstorm":     ("brainstorm.py",       [],            {}),
+    "pros":           ("pros.py",             [],            {}),
+    "eli5":           ("eli5.py",             [],            {}),
+    "compare":        ("compare.py",          [],            {}),
+    "plan":           ("plan.py",             [],            {}),
+    "translate":      ("translate.py",        [],            {}),
+    "edit":           ("edit.py",             [],            {}),
+    "calc":           ("calc.py",             [],            {}),
+    "todo":           ("todo.py",             [],            {}),
 }
 
 
@@ -159,6 +227,45 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ── conversation history helpers ─────────────────────────────────────────────
+
+def _history_file():
+    d = BASE / "notes" / "web-history"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{datetime.now().strftime('%Y-%m-%d')}.jsonl"
+
+
+def _save_exchange(cmd, user_input, response_text):
+    """Append a Q&A pair to today's history file."""
+    try:
+        entry = json.dumps({
+            "time":  datetime.now().strftime("%H:%M"),
+            "cmd":   cmd,
+            "input": user_input,
+            "reply": response_text,
+        })
+        with open(_history_file(), "a", encoding="utf-8") as f:
+            f.write(entry + "\n")
+    except Exception:
+        pass
+
+
+def _load_history(date_str=None):
+    d = BASE / "notes" / "web-history"
+    if not date_str:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+    f = d / f"{date_str}.jsonl"
+    if not f.exists():
+        return []
+    entries = []
+    for line in f.read_text(encoding="utf-8").splitlines():
+        try:
+            entries.append(json.loads(line))
+        except Exception:
+            pass
+    return entries
+
+
 # ── inline command handlers ───────────────────────────────────────────────────
 
 def _stream_notes():
@@ -226,6 +333,7 @@ def run():
 
     env = dict(os.environ)
     env["JARVIS_THINK"] = "0"
+    env["JARVIS_WEB"]   = "1"
     env.update(env_overrides)
     _groq_env(env)
 
@@ -239,20 +347,24 @@ def run():
             cmd_args,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
             text=True,
             env=env,
             bufsize=0,
         )
+        full_response = []
         try:
             while True:
                 chunk = proc.stdout.read(16)
                 if not chunk:
                     break
+                full_response.append(chunk)
                 yield f"data: {json.dumps({'t': chunk})}\n\n"
         finally:
             proc.stdout.close()
             proc.kill()
             proc.wait()
+        _save_exchange(cmd, inp, "".join(full_response).strip())
         yield "data: [DONE]\n\n"
 
     return Response(
@@ -264,6 +376,71 @@ def run():
             "Connection":        "keep-alive",
         },
     )
+
+
+# ── /history endpoint ─────────────────────────────────────────────────────────
+
+@app.route("/games")
+def games():
+    if not session.get("authenticated"):
+        return redirect(url_for("login"))
+    return render_template("games.html")
+
+
+@app.route("/game/<name>")
+def game(name):
+    if not session.get("authenticated"):
+        return redirect(url_for("login"))
+    safe = re.sub(r'[^a-z0-9\-]', '', name)
+    tmpl = f"game-{safe}.html"
+    try:
+        return render_template(tmpl)
+    except Exception:
+        return "Game not found", 404
+
+
+@app.route("/history")
+def history():
+    if not session.get("authenticated"):
+        return Response("Unauthorized", status=401)
+    date_str = request.args.get("date", "")
+    entries  = _load_history(date_str or None)
+    # List available dates
+    d = BASE / "notes" / "web-history"
+    dates = sorted((f.stem for f in d.glob("*.jsonl")), reverse=True)[:30] if d.exists() else []
+    return {"entries": entries, "dates": dates}
+
+
+# ── /transcribe endpoint (Whisper server-side STT) ───────────────────────────
+
+@app.route("/transcribe", methods=["POST"])
+def transcribe():
+    if not session.get("authenticated"):
+        return Response("Unauthorized", status=401)
+
+    audio_file = request.files.get("audio")
+    if not audio_file:
+        return {"error": "no audio"}, 400
+
+    import tempfile
+    suffix = ".webm"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        audio_path = tmp.name
+        audio_file.save(audio_path)
+
+    try:
+        from faster_whisper import WhisperModel
+        model = WhisperModel("tiny", device="cpu", compute_type="int8")
+        segments, _ = model.transcribe(audio_path, language="en")
+        text = " ".join(s.text for s in segments).strip()
+        return {"text": text}
+    except Exception as e:
+        return {"error": str(e), "text": ""}, 500
+    finally:
+        try:
+            os.unlink(audio_path)
+        except Exception:
+            pass
 
 
 # ── legacy /ask endpoint (kept for compatibility) ─────────────────────────────
@@ -283,14 +460,15 @@ def ask():
     script, extra_args, env_overrides = COMMANDS.get(mode, COMMANDS["ask"])
     env = dict(os.environ)
     env["JARVIS_THINK"] = "0"
+    env["JARVIS_WEB"]   = "1"
     env.update(env_overrides)
     _groq_env(env)
     cmd_args = [PYTHON, str(SCRIPTS / script)] + extra_args + [question]
 
     def stream():
         proc = subprocess.Popen(cmd_args, stdout=subprocess.PIPE,
-                                stderr=subprocess.DEVNULL, text=True,
-                                env=env, bufsize=0)
+                                stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                                text=True, env=env, bufsize=0)
         try:
             while True:
                 chunk = proc.stdout.read(16)
@@ -325,12 +503,18 @@ if __name__ == "__main__":
     ip   = get_local_ip()
     port = int(os.environ.get("JARVIS_PORT", 5000))
 
+    ssl_context = _ensure_ssl_cert(CONFIG)
+    scheme = "https" if ssl_context else "http"
+
     print(f"\n  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print(f"  Jarvis Web UI  |  PIN: {pin}")
     print(f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"  This computer:   http://localhost:{port}")
-    print(f"  Phone / tablet:  http://{ip}:{port}")
+    print(f"  This computer:   {scheme}://localhost:{port}")
+    print(f"  Phone / tablet:  {scheme}://{ip}:{port}")
+    if ssl_context:
+        print(f"  (browser will warn 'not secure' — tap Advanced → Proceed)")
     print(f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print(f"  Ctrl+C to stop\n")
 
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True,
+            ssl_context=ssl_context)

@@ -65,6 +65,7 @@ def input_with_esc(prompt_str):
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     buf = []
+    _vlen = len(re.sub(r"\x1b\[[0-9;]*m", "", prompt_str))
     try:
         tty.setcbreak(fd)
         while True:
@@ -84,7 +85,15 @@ def input_with_esc(prompt_str):
             elif ch in ("\x7f", "\x08"):
                 if buf:
                     buf.pop()
-                    sys.stdout.write("\x08 \x08")
+                    try:
+                        cols = os.get_terminal_size().columns
+                    except OSError:
+                        cols = 80
+                    total = _vlen + len(buf) + 1
+                    lines_up = (total - 1) // cols
+                    if lines_up:
+                        sys.stdout.write("\033[%dA" % lines_up)
+                    sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))
                     sys.stdout.flush()
             elif ch == "\x03":
                 raise KeyboardInterrupt
@@ -306,32 +315,42 @@ def run_lesson(topic: str):
         if challenge:
             print_section("Challenge:", challenge, YELLOW)
 
+        task_line = challenge.splitlines()[0] if challenge else f"Write code demonstrating: {step_title}"
         print(f"\n{DIM}  Options: type code, 'e' open editor, 's' skip, 'h' hint, 'q' quit{RESET}\n")
 
         while True:
             # Always reprint the challenge as a reminder before each attempt
-            if challenge:
-                print(f"  {BOLD}{YELLOW}Challenge:{RESET} {challenge.splitlines()[0]}")
-                print()
+            print(f"  {BOLD}{YELLOW}Challenge:{RESET} {task_line}")
+            print()
 
             try:
                 lines = []
                 print(f"  {YELLOW}Your answer (blank line to submit  |  ESC to exit):{RESET}")
-                while True:
-                    line = input_with_esc("  ")
-                    if line is None:   # ESC
-                        print(f"\n  {DIM}Session saved. Come back anytime!{RESET}")
-                        save_session(topic, all_steps)
-                        sys.exit(0)
-                    if line == "":
-                        break
-                    lines.append(line)
+                # First line: detect single-char commands immediately
+                first = input_with_esc("  ")
+                if first is None:   # ESC
+                    print(f"\n  {DIM}Session saved. Come back anytime!{RESET}")
+                    save_session(topic, all_steps)
+                    return
+                if first.strip().lower() in ("q", "s", "h", "e"):
+                    student_input = first.strip().lower()
+                else:
+                    if first:
+                        lines.append(first)
+                    while True:
+                        line = input_with_esc("  ")
+                        if line is None:   # ESC
+                            print(f"\n  {DIM}Session saved. Come back anytime!{RESET}")
+                            save_session(topic, all_steps)
+                            return
+                        if line == "":
+                            break
+                        lines.append(line)
+                    student_input = "\n".join(lines).strip()
             except (EOFError, KeyboardInterrupt):
                 print("\n\nSession ended.")
                 save_session(topic, all_steps)
                 return
-
-            student_input = "\n".join(lines).strip()
 
             if student_input.lower() == "q":
                 print(f"\n  {DIM}Session saved. Come back anytime!{RESET}")
@@ -344,14 +363,15 @@ def run_lesson(topic: str):
 
             if student_input.lower() == "h":
                 print(f"\n  {DIM}Getting hint...{RESET}", flush=True)
+                hint_context = task_line
                 hint_prompt = (
                     f"You are a patient coding tutor helping a beginner.\n"
                     f"Topic: {topic}\n"
-                    f"Step title: {step_title}\n"
-                    f"The challenge the student is working on:\n{challenge}\n\n"
-                    f"Give exactly one short sentence (under 15 words) as a hint that points them "
-                    f"toward the solution without giving it away. The hint must be directly about "
-                    f"the challenge above — do not give a generic tip."
+                    f"Step: {step_title}\n"
+                    f"The challenge: {hint_context}\n\n"
+                    f"Give exactly ONE sentence (under 15 words) as a concrete, specific hint "
+                    f"that points toward the solution without giving it away. "
+                    f"The hint must reference this exact challenge — no generic tips."
                 )
                 hint = ask_model(hint_prompt)
                 print(f"  {CYAN}Hint: {hint}{RESET}\n")
@@ -359,7 +379,7 @@ def run_lesson(topic: str):
 
             if student_input.lower() == "e":
                 print(f"\n  {DIM}Opening editor...{RESET}")
-                student_input = open_in_editor(challenge)
+                student_input = open_in_editor(task_line)
                 if not student_input:
                     print(f"  {DIM}(empty — nothing to submit){RESET}\n")
                     continue
@@ -388,7 +408,7 @@ def run_lesson(topic: str):
             resp = input_with_esc(f"  {YELLOW}Try again? [y/N]  (ESC to exit) {RESET}")
             if resp is None:
                 save_session(topic, all_steps)
-                sys.exit(0)
+                return
             if resp.strip().lower() != "y":
                 break
 
@@ -396,7 +416,7 @@ def run_lesson(topic: str):
             r = input_with_esc(f"\n  {YELLOW}Press Enter for Step {step_num + 1}  (ESC to exit) →{RESET} ")
             if r is None:
                 save_session(topic, all_steps)
-                sys.exit(0)
+                return
 
     # Final summary
     os.system("clear")

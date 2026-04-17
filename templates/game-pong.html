@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pong — Jarvis</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d1117; color: #c8d8e8; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+.header { width: 100%; background: #0d1a2a; border-bottom: 1px solid #1a2e4a; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+.header a { color: #4a9eff; text-decoration: none; font-size: 0.85rem; }
+.header h1 { color: #4a9eff; font-size: 1rem; letter-spacing: 2px; flex: 1; }
+.scores { display: flex; align-items: center; gap: 24px; padding: 12px 0 6px; font-size: 2rem; font-weight: 800; color: #4a9eff; letter-spacing: 4px; }
+.scores .lbl { font-size: 0.65rem; color: #445; letter-spacing: 2px; display: block; text-align: center; font-weight: 400; }
+canvas { border: 1px solid #1a2e4a; border-radius: 4px; touch-action: none; display: block; }
+.controls { display: flex; gap: 12px; padding: 12px 0; }
+.ctrl-pad { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.ctrl-pad button { background: #0d1a2a; border: 1px solid #1a2e4a; border-radius: 8px; color: #4a9eff; font-size: 1.1rem; cursor: pointer; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
+.ctrl-pad button:active { background: #1a2e4a; }
+.ctrl-label { font-size: 0.6rem; color: #445; letter-spacing: 1px; margin-top: 2px; }
+#overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(13,17,23,0.97); border: 1px solid #4a9eff; border-radius: 12px; padding: 24px 32px; text-align: center; z-index: 10; min-width: 200px; }
+#overlay h2 { color: #4a9eff; margin-bottom: 8px; }
+#overlay p { color: #8ab4d4; margin-bottom: 16px; font-size: 0.85rem; }
+#overlay button { background: #4a9eff; color: #0d1117; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="header"><a href="/games">← Games</a><h1>PONG</h1></div>
+<div class="scores">
+    <div><span id="ps">0</span><span class="lbl">YOU</span></div>
+    <div style="color:#1a2e4a">|</div>
+    <div><span id="as">0</span><span class="lbl">AI</span></div>
+</div>
+<canvas id="c"></canvas>
+<div class="controls">
+    <div class="ctrl-pad">
+        <button id="upBtn">▲</button>
+        <button id="dnBtn">▼</button>
+        <div class="ctrl-label">MOVE</div>
+    </div>
+</div>
+<div id="overlay">
+    <h2>PONG</h2>
+    <p>Move your paddle up/down<br>First to 7 wins</p>
+    <button onclick="startGame()">PLAY</button>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = Math.min(window.innerWidth - 8, 480);
+const H = Math.min(window.innerHeight - 240, 320);
+canvas.width = W; canvas.height = H;
+
+const PW = 10, PH = Math.floor(H * 0.2), BALL = 8, SPEED = 4;
+const WIN_SCORE = 7;
+const MID = W / 2;
+
+let ball, pPlayer, pAI, playerScore, aiScore, running, animId;
+let playerDir = 0; // -1 up, 0 still, 1 down
+
+function reset(who) {
+    ball = {
+        x: MID, y: H/2,
+        vx: (who === 'player' ? 1 : -1) * SPEED * (0.8 + Math.random()*0.4),
+        vy: (Math.random() > 0.5 ? 1 : -1) * SPEED * (0.4 + Math.random()*0.4),
+    };
+    pPlayer.y = H/2 - PH/2;
+    pAI.y     = H/2 - PH/2;
+}
+
+function startGame() {
+    document.getElementById('overlay').style.display='none';
+    playerScore = 0; aiScore = 0;
+    pPlayer = {x: 16,   y: H/2 - PH/2};
+    pAI     = {x: W-16-PW, y: H/2 - PH/2};
+    updateScore();
+    reset('player');
+    running = true;
+    cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(loop);
+}
+
+function loop() {
+    if (!running) return;
+    update();
+    draw();
+    animId = requestAnimationFrame(loop);
+}
+
+function update() {
+    // Player movement from buttons
+    const spd = H * 0.012;
+    pPlayer.y = Math.max(0, Math.min(H - PH, pPlayer.y + playerDir * spd));
+
+    // AI movement
+    const aiCenter = pAI.y + PH/2;
+    const aiSpd    = H * 0.009;
+    if (aiCenter < ball.y - 4) pAI.y = Math.min(H - PH, pAI.y + aiSpd);
+    else if (aiCenter > ball.y + 4) pAI.y = Math.max(0, pAI.y - aiSpd);
+
+    // Ball
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Top/bottom bounce
+    if (ball.y - BALL/2 <= 0) { ball.y = BALL/2; ball.vy = Math.abs(ball.vy); }
+    if (ball.y + BALL/2 >= H) { ball.y = H - BALL/2; ball.vy = -Math.abs(ball.vy); }
+
+    // Player paddle collision
+    if (ball.vx < 0 &&
+        ball.x - BALL/2 <= pPlayer.x + PW &&
+        ball.x + BALL/2 >= pPlayer.x &&
+        ball.y >= pPlayer.y && ball.y <= pPlayer.y + PH) {
+        ball.x  = pPlayer.x + PW + BALL/2;
+        ball.vx = Math.abs(ball.vx) * 1.04;
+        ball.vy += (ball.y - (pPlayer.y + PH/2)) * 0.12;
+    }
+
+    // AI paddle collision
+    if (ball.vx > 0 &&
+        ball.x + BALL/2 >= pAI.x &&
+        ball.x - BALL/2 <= pAI.x + PW &&
+        ball.y >= pAI.y && ball.y <= pAI.y + PH) {
+        ball.x  = pAI.x - BALL/2;
+        ball.vx = -Math.abs(ball.vx) * 1.04;
+        ball.vy += (ball.y - (pAI.y + PH/2)) * 0.12;
+    }
+
+    // Cap speed
+    const spMax = SPEED * 2.5;
+    const sp = Math.sqrt(ball.vx**2 + ball.vy**2);
+    if (sp > spMax) { ball.vx *= spMax/sp; ball.vy *= spMax/sp; }
+
+    // Score
+    if (ball.x < 0) {
+        aiScore++;
+        updateScore();
+        if (aiScore >= WIN_SCORE) { endGame(false); return; }
+        reset('player');
+    }
+    if (ball.x > W) {
+        playerScore++;
+        updateScore();
+        if (playerScore >= WIN_SCORE) { endGame(true); return; }
+        reset('ai');
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, W, H);
+    // Center line
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = '#1a2e4a';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(MID, 0); ctx.lineTo(MID, H); ctx.stroke();
+    ctx.setLineDash([]);
+    // Paddles
+    ctx.fillStyle = '#4a9eff';
+    ctx.beginPath(); ctx.roundRect(pPlayer.x, pPlayer.y, PW, PH, 4); ctx.fill();
+    ctx.fillStyle = '#ff6b4a';
+    ctx.beginPath(); ctx.roundRect(pAI.x, pAI.y, PW, PH, 4); ctx.fill();
+    // Ball
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL/2, 0, Math.PI*2); ctx.fill();
+}
+
+function updateScore() {
+    document.getElementById('ps').textContent = playerScore;
+    document.getElementById('as').textContent = aiScore;
+}
+
+function endGame(won) {
+    running = false;
+    cancelAnimationFrame(animId);
+    const ol = document.getElementById('overlay');
+    ol.innerHTML = `<h2>${won ? 'YOU WIN! 🎉' : 'YOU LOSE'}</h2><p>${playerScore} — ${aiScore}</p><button onclick="startGame()">PLAY AGAIN</button>`;
+    ol.style.display = 'block';
+}
+
+// Button controls
+document.getElementById('upBtn').addEventListener('touchstart', e => { playerDir = -1; e.preventDefault(); }, {passive:false});
+document.getElementById('dnBtn').addEventListener('touchstart', e => { playerDir =  1; e.preventDefault(); }, {passive:false});
+document.getElementById('upBtn').addEventListener('touchend',   e => { if (playerDir === -1) playerDir = 0; e.preventDefault(); }, {passive:false});
+document.getElementById('dnBtn').addEventListener('touchend',   e => { if (playerDir ===  1) playerDir = 0; e.preventDefault(); }, {passive:false});
+document.getElementById('upBtn').addEventListener('mousedown',  () => playerDir = -1);
+document.getElementById('dnBtn').addEventListener('mousedown',  () => playerDir =  1);
+document.addEventListener('mouseup', () => playerDir = 0);
+
+// Touch on canvas: drag paddle
+let touchY = null;
+canvas.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; e.preventDefault(); }, {passive:false});
+canvas.addEventListener('touchmove',  e => {
+    if (touchY === null) return;
+    const dy = e.touches[0].clientY - touchY;
+    touchY = e.touches[0].clientY;
+    pPlayer.y = Math.max(0, Math.min(H - PH, pPlayer.y + dy));
+    e.preventDefault();
+}, {passive:false});
+canvas.addEventListener('touchend', () => touchY = null);
+
+// Keyboard
+document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp')   { e.preventDefault(); playerDir = -1; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); playerDir =  1; }
+});
+document.addEventListener('keyup', e => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') playerDir = 0;
+});
+</script>
+</body>
+</html>

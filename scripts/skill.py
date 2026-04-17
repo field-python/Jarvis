@@ -2,6 +2,7 @@
 """skill.py — Skill of the Day: one practical, actionable skill per day"""
 import sys
 import os
+import re
 import select
 import subprocess
 import tempfile
@@ -33,6 +34,7 @@ def input_with_esc(prompt_str):
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     buf = []
+    _vlen = len(re.sub(r"\x1b\[[0-9;]*m", "", prompt_str))
     try:
         tty.setcbreak(fd)
         while True:
@@ -52,7 +54,15 @@ def input_with_esc(prompt_str):
             elif ch in ("\x7f", "\x08"):
                 if buf:
                     buf.pop()
-                    sys.stdout.write("\x08 \x08")
+                    try:
+                        cols = os.get_terminal_size().columns
+                    except OSError:
+                        cols = 80
+                    total = _vlen + len(buf) + 1
+                    lines_up = (total - 1) // cols
+                    if lines_up:
+                        sys.stdout.write("\033[%dA" % lines_up)
+                    sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))
                     sys.stdout.flush()
             elif ch == "\x03":
                 raise KeyboardInterrupt
@@ -107,9 +117,13 @@ cache_dir.mkdir(parents=True, exist_ok=True)
 cache_key  = f"{today}-{category or 'daily'}.txt"
 cache_file = cache_dir / cache_key
 
+already_shown = False
+
 if cache_file.exists() and not force_new:
     cached = cache_file.read_text(encoding="utf-8").strip()
-    cat_label = (category or "Daily Skill").title()
+    if not category:
+        category = random.Random(today).choice(CATEGORIES)
+    cat_label = category.title()
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print(f"  Jarvis Skill  |  {cat_label}  |  {current_date}")
@@ -120,44 +134,14 @@ if cache_file.exists() and not force_new:
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("  (cached — 'Jarvis skill new' for a different one)")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    sys.exit(0)
+    already_shown = True
 
 # Pick category — seed by date so it's consistent all day unless forced
-if not category:
-    rng      = random.Random(today)
-    category = rng.choice(CATEGORIES)
+if not already_shown:
+    if not category:
+        rng      = random.Random(today)
+        category = rng.choice(CATEGORIES)
 
-cat_label = category.title()
-
-prompt = (
-    f"You are Jarvis, a practical AI assistant. Today is {current_date}.\n\n"
-    f"Teach one specific, actionable skill from the category: {category}.\n\n"
-    f"Format your response exactly like this:\n"
-    f"SKILL: [short name of the skill, 3-6 words]\n\n"
-    f"[2-3 sentences explaining what this skill is and why it matters.]\n\n"
-    f"HOW TO DO IT:\n"
-    f"1. [first step]\n"
-    f"2. [second step]\n"
-    f"3. [third step]\n"
-    f"(3-5 steps, each one sentence, concrete and specific)\n\n"
-    f"PRO TIP: [one sentence with a key insight or common mistake to avoid]\n\n"
-    f"Rules: Be specific, not vague. Give real steps a beginner can follow today. "
-    f"No fluff, no intros like 'Great question!'. Start directly with SKILL:."
-)
-
-tmp = tempfile.NamedTemporaryFile(
-    mode="w", suffix=".txt", prefix="jarvis-skill-", delete=False
-)
-tmp.write(prompt)
-tmp.close()
-
-print()
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"  Jarvis Skill  |  {cat_label}  |  {current_date}")
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print()
-
-# Capture output for caching
 import io
 
 def stream_and_capture(cmd):
@@ -170,13 +154,44 @@ def stream_and_capture(cmd):
     proc.wait()
     return buf.getvalue()
 
-response = stream_and_capture([sys.executable, generate_script, model, host, tmp.name])
-os.unlink(tmp.name)
+if not already_shown:
+    cat_label = category.title()
 
-if response.strip():
-    cache_file.write_text(response, encoding="utf-8")
+    prompt = (
+        f"You are Jarvis, a practical AI assistant. Today is {current_date}.\n\n"
+        f"Teach one specific, actionable skill from the category: {category}.\n\n"
+        f"Format your response exactly like this:\n"
+        f"SKILL: [short name of the skill, 3-6 words]\n\n"
+        f"[2-3 sentences explaining what this skill is and why it matters.]\n\n"
+        f"HOW TO DO IT:\n"
+        f"1. [first step]\n"
+        f"2. [second step]\n"
+        f"3. [third step]\n"
+        f"(3-5 steps, each one sentence, concrete and specific)\n\n"
+        f"PRO TIP: [one sentence with a key insight or common mistake to avoid]\n\n"
+        f"Rules: Be specific, not vague. Give real steps a beginner can follow today. "
+        f"No fluff, no intros like 'Great question!'. Start directly with SKILL:."
+    )
 
-print()
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", prefix="jarvis-skill-", delete=False
+    )
+    tmp.write(prompt)
+    tmp.close()
+
+    print()
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"  Jarvis Skill  |  {cat_label}  |  {current_date}")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print()
+
+    response = stream_and_capture([sys.executable, generate_script, model, host, tmp.name])
+    os.unlink(tmp.name)
+
+    if response.strip():
+        cache_file.write_text(response, encoding="utf-8")
+
+    print()
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 # ── "another skill?" loop ─────────────────────────────────────────────────────

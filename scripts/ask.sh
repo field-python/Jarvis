@@ -99,6 +99,26 @@ if [[ -f "$memory_file" ]]; then
   memory_block="$(grep -v '^\s*#\|^\s*<!--\|^\s*-->' "$memory_file" | grep -v '^\s*$' || true)"
 fi
 
+# ── load conversation session (30-minute rolling window) ─────────────────────
+session_file="/tmp/jarvis-session.txt"
+session_history=""
+if [[ -f "$session_file" ]]; then
+  # Expire session if older than 30 minutes
+  if [[ -n "$(find "$session_file" -mmin -30 2>/dev/null)" ]]; then
+    # Keep only the last 4 exchanges to avoid bloating context
+    session_history="$(
+      awk 'BEGIN{p=0} /^---$/{p++} {lines[NR]=$0} END{
+        # count separators to find start of last 4 blocks
+        sep=0; start=NR
+        for(i=NR;i>=1;i--){if(lines[i]=="---"){sep++;if(sep==4){start=i+1;break}}}
+        for(i=start;i<=NR;i++) print lines[i]
+      }' "$session_file" 2>/dev/null || true
+    )"
+  else
+    rm -f "$session_file"
+  fi
+fi
+
 # ── build archive context section ─────────────────────────────────────────────
 if [[ -n "$context_block" ]]; then
   archive_section="Local archive excerpts (use as primary evidence):
@@ -123,11 +143,15 @@ Rules:
 - Do not invent facts.
 - Do not tell the user to visit websites or search the internet.
 - Do not mention file paths or archive structure unless citations were requested.
+- Use prior conversation context naturally — if the user refers to something mentioned earlier, connect it without being asked.
 
 Mode: $mode_instruction
 
 ${memory_block:+User memory (personal facts to keep in mind):
 $memory_block
+
+}${session_history:+Prior conversation (use for context — do not repeat or summarize it):
+$session_history
 
 }Question: $question
 
@@ -144,8 +168,10 @@ if [[ "$mode" == "brief" || "$mode" == "normal" ]]; then
   cache_key="$(printf '%s|%s' "$mode" "$question" | md5sum | cut -d' ' -f1)"
   cache_file="$cache_dir/$cache_key.txt"
   if [[ -f "$cache_file" ]]; then
-    printf '%s\n' "$(cat "$cache_file")"
+    cached_text="$(cat "$cache_file")"
+    printf '%s\n' "$cached_text"
     printf '\n%s\n' "(cached — 'Jarvis cache-clear' to reset)" >&2
+    printf 'Q: %s\nA: %s\n---\n' "$question" "$cached_text" >> "$session_file"
     exit 0
   fi
 fi
@@ -173,6 +199,12 @@ fi
 # Save to cache if applicable
 if [[ -n "$cache_key" && -s "$tmp_response" ]]; then
   cp "$tmp_response" "$cache_dir/$cache_key.txt"
+fi
+
+# ── append Q&A to conversation session ───────────────────────────────────────
+if [[ -s "$tmp_response" ]]; then
+  answer_text="$(cat "$tmp_response")"
+  printf 'Q: %s\nA: %s\n---\n' "$question" "$answer_text" >> "$session_file"
 fi
 
 rm -f "$tmp_prompt" "$tmp_response"

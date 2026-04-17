@@ -272,6 +272,7 @@
             display: flex; align-items: center; gap: 9px;
             transition: background .12s, border-color .12s;
             color: var(--text);
+            text-decoration: none;
         }
         .di:active { background: var(--surface3); border-color: var(--cyan-dim); }
         .di-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
@@ -288,6 +289,7 @@
     {% if location %}<span class="hl">{{ location }}</span>{% else %}<span class="hl"></span>{% endif %}
     <button class="hdr-btn menu-icon" id="menuBtn" onclick="openDrawer()">⊞</button>
     <button class="tts-btn" id="ttsBtn" onclick="toggleTTS()" title="Toggle voice response">🔊</button>
+    <button class="hdr-btn" id="histBtn" onclick="openHistory()" title="Chat history">📋</button>
     <a class="hdr-btn" href="/logout">Lock</a>
 </div>
 
@@ -319,7 +321,15 @@
 </div>
 
 <!-- Drawer backdrop -->
-<div class="dbg" id="dbg" onclick="closeDrawer()"></div>
+<div class="dbg" id="dbg" onclick="closeDrawer(); closeHistory()"></div>
+
+<!-- History panel -->
+<div class="drawer" id="histPanel" style="display:none">
+    <div class="dhandle"></div>
+    <div class="dtitle">Chat History</div>
+    <div id="histDateBar" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 16px 0"></div>
+    <div id="histEntries" style="padding:12px 16px;overflow-y:auto;flex:1;font-size:0.85rem;line-height:1.6"></div>
+</div>
 
 <!-- Drawer -->
 <div class="drawer" id="drawer">
@@ -403,6 +413,84 @@
             </button>
         </div>
     </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Thinking &amp; Planning</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="brainstorm" data-input="true" data-ph="What to brainstorm..." onclick="pickCmd(this)">
+                <span class="di-icon">💡</span><span class="di-label">Brainstorm</span>
+            </button>
+            <button class="di" data-cmd="pros" data-input="true" data-ph="Decision to weigh..." onclick="pickCmd(this)">
+                <span class="di-icon">⚖️</span><span class="di-label">Pros &amp; Cons</span>
+            </button>
+            <button class="di" data-cmd="eli5" data-input="true" data-ph="Topic to explain simply..." onclick="pickCmd(this)">
+                <span class="di-icon">🧒</span><span class="di-label">Explain Simply</span>
+            </button>
+            <button class="di" data-cmd="compare" data-input="true" data-ph="Thing A vs Thing B..." onclick="pickCmd(this)">
+                <span class="di-icon">🔀</span><span class="di-label">Compare</span>
+            </button>
+            <button class="di" data-cmd="plan" data-input="true" data-ph="Goal to plan for..." onclick="pickCmd(this)">
+                <span class="di-icon">🗺️</span><span class="di-label">Make a Plan</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Language &amp; Writing</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="translate" data-input="true" data-ph="Text to Spanish (or: hello to French)..." onclick="pickCmd(this)">
+                <span class="di-icon">🌐</span><span class="di-label">Translate</span>
+            </button>
+            <button class="di" data-cmd="edit" data-input="true" data-ph="Paste text to improve..." onclick="pickCmd(this)">
+                <span class="di-icon">✏️</span><span class="di-label">Edit Writing</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Health &amp; Tools</div>
+        <div class="dsec-grid">
+            <button class="di" data-cmd="symptom" data-input="true" data-ph="Describe your symptoms..." onclick="pickCmd(this)">
+                <span class="di-icon">🩺</span><span class="di-label">Symptom Check</span>
+            </button>
+            <button class="di" data-cmd="calc" data-input="true" data-ph="Math or unit conversion (10km to miles)..." onclick="pickCmd(this)">
+                <span class="di-icon">🔢</span><span class="di-label">Calculator</span>
+            </button>
+            <button class="di" data-cmd="todo" data-input="true" data-ph="list / add Item / done 1..." onclick="pickCmd(this)">
+                <span class="di-icon">✅</span><span class="di-label">To-Do List</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="dsec">
+        <div class="dsec-label">Games</div>
+        <div class="dsec-grid">
+            <a class="di" href="/game/snake">
+                <span class="di-icon">🐍</span><span class="di-label">Snake</span>
+            </a>
+            <a class="di" href="/game/tetris">
+                <span class="di-icon">🟦</span><span class="di-label">Tetris</span>
+            </a>
+            <a class="di" href="/game/pong">
+                <span class="di-icon">🏓</span><span class="di-label">Pong</span>
+            </a>
+            <a class="di" href="/game/breakout">
+                <span class="di-icon">🧱</span><span class="di-label">Breakout</span>
+            </a>
+            <a class="di" href="/game/2048">
+                <span class="di-icon">🔢</span><span class="di-label">2048</span>
+            </a>
+            <a class="di" href="/game/minesweeper">
+                <span class="di-icon">💣</span><span class="di-label">Minesweeper</span>
+            </a>
+            <a class="di" href="/game/wordle">
+                <span class="di-icon">🔤</span><span class="di-label">Wordle</span>
+            </a>
+            <a class="di" href="/game/chess">
+                <span class="di-icon">♟️</span><span class="di-label">Chess</span>
+            </a>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -424,12 +512,61 @@ document.querySelectorAll('.mbt').forEach(b => {
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
 function openDrawer() {
+    closeHistory();
     document.getElementById('dbg').classList.add('open');
     document.getElementById('drawer').classList.add('open');
 }
 function closeDrawer() {
     document.getElementById('dbg').classList.remove('open');
     document.getElementById('drawer').classList.remove('open');
+}
+
+// ── History panel ─────────────────────────────────────────────────────────────
+function openHistory() {
+    closeDrawer();
+    document.getElementById('dbg').classList.add('open');
+    const panel = document.getElementById('histPanel');
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+    panel.classList.add('open');
+    loadHistory();
+}
+function closeHistory() {
+    document.getElementById('dbg').classList.remove('open');
+    const panel = document.getElementById('histPanel');
+    panel.classList.remove('open');
+    panel.style.display = 'none';
+}
+async function loadHistory(dateStr) {
+    const url = dateStr ? `/history?date=${dateStr}` : '/history';
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    // Date selector
+    const bar = document.getElementById('histDateBar');
+    bar.innerHTML = '';
+    data.dates.forEach(d => {
+        const btn = document.createElement('button');
+        btn.textContent = d;
+        btn.style.cssText = 'background:#1e2a3a;border:1px solid #2a3f5f;color:#8ab4d4;padding:3px 8px;border-radius:4px;font-size:0.75rem;cursor:pointer';
+        btn.onclick = () => loadHistory(d);
+        if (d === (dateStr || data.dates[0])) btn.style.background = '#2a3f5f';
+        bar.appendChild(btn);
+    });
+
+    // Entries
+    const box = document.getElementById('histEntries');
+    if (!data.entries.length) {
+        box.innerHTML = '<div style="color:#556;padding:20px 0">No history for this date.</div>';
+        return;
+    }
+    box.innerHTML = data.entries.slice().reverse().map(e => `
+        <div style="margin-bottom:16px;border-bottom:1px solid #1a2535;padding-bottom:12px">
+            <div style="color:#556;font-size:0.75rem;margin-bottom:4px">${e.time} · ${e.cmd}</div>
+            ${e.input ? `<div style="color:#8ab4d4;margin-bottom:6px">▶ ${e.input}</div>` : ''}
+            <div style="color:#c8d8e8;white-space:pre-wrap">${e.reply.slice(0, 500)}${e.reply.length > 500 ? '…' : ''}</div>
+        </div>
+    `).join('');
 }
 
 function pickCmd(el) {
@@ -607,48 +744,65 @@ function send(override) {
     runCmd(activeCmd, q);
 }
 
-// ── Voice input (Speech Recognition) ─────────────────────────────────────────
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recog     = null;
-let listening = false;
-const micBtn  = document.getElementById('micBtn');
+// ── Voice input (Whisper server-side transcription) ───────────────────────────
+let mediaRecorder = null;
+let audioChunks   = [];
+let listening     = false;
+const micBtn      = document.getElementById('micBtn');
 
-function toggleMic() {
-    if (!SR) {
-        micBtn.textContent = '✗';
-        setTimeout(() => micBtn.textContent = '🎤', 1500);
-        return;
-    }
+async function toggleMic() {
     if (listening) {
-        recog.stop();
-        return;
-    }
-    recog = new SR();
-    recog.continuous      = false;
-    recog.interimResults  = false;
-    recog.lang            = 'en-US';
-
-    recog.onstart = () => {
-        listening = true;
-        micBtn.classList.add('on');
-        micBtn.textContent = '🎙';
-    };
-    recog.onresult = e => {
-        const text = e.results[0][0].transcript.trim();
-        if (text) {
-            ta.value = text;
-            ta.style.height = 'auto';
-            ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-            if (!busy) send();
-        }
-    };
-    recog.onerror = () => {};
-    recog.onend   = () => {
+        // Stop recording → triggers onstop → sends to server
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
         listening = false;
         micBtn.classList.remove('on');
+        micBtn.textContent = '⏳';
+        return;
+    }
+
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        addMsg('system', '🎤 Mic access denied — check browser permissions for this site.');
+        return;
+    }
+
+    audioChunks = [];
+    // Prefer webm/opus; fall back to whatever the browser supports
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+
+    mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const fd   = new FormData();
+        fd.append('audio', blob, 'recording.webm');
+        try {
+            const res  = await fetch('/transcribe', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.text && data.text.trim()) {
+                ta.value = data.text.trim();
+                ta.style.height = 'auto';
+                ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+                if (!busy) send();
+            } else {
+                addMsg('system', '🎤 Nothing heard — try speaking louder or closer to the mic.');
+            }
+        } catch (err) {
+            addMsg('system', '🎤 Transcription failed: ' + err.message);
+        }
         micBtn.textContent = '🎤';
     };
-    recog.start();
+
+    mediaRecorder.start();
+    listening = true;
+    micBtn.classList.add('on');
+    micBtn.textContent = '🎙';
 }
 
 // ── Voice output (Text-to-Speech) ─────────────────────────────────────────────

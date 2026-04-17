@@ -149,6 +149,11 @@ def do_help():
 
   SEARCH
   Jarvis wiki "topic"            Full Wikipedia lookup — text + browser option
+  Jarvis erowid                  Offline drug/substance reference browser
+  Jarvis erowid "substance"      Open substance page directly (e.g. psilocybin, lsd)
+  Jarvis blackjack / bj / 21     Blackjack — hit or stand, beat the dealer
+  Jarvis mathquiz / math         Timed arithmetic — Easy / Medium / Hard
+  Jarvis wordchain / chain       Word chain — each word starts with the last letter
   Jarvis search "keyword"        Keyword search the archive
   Jarvis find "topic"            Semantic search — finds related notes
   Jarvis list                    List all archive topics
@@ -497,10 +502,46 @@ def main():
         run_py("skill.py", *rest)
     elif cmd in ("firstaid", "first-aid", "fa"):
         run_py("firstaid.py", *rest)
+    elif cmd in ("symptom", "symptoms", "triage"):
+        run_py("symptom.py", *rest)
+    elif cmd in ("brainstorm", "ideas"):
+        run_py("brainstorm.py", *rest)
+    elif cmd in ("pros", "pros-cons", "proscons"):
+        run_py("pros.py", *rest)
+    elif cmd in ("eli5", "explain", "simple"):
+        run_py("eli5.py", *rest)
+    elif cmd in ("compare", "versus", "vs"):
+        run_py("compare.py", *rest)
+    elif cmd in ("plan", "goal"):
+        run_py("plan.py", *rest)
+    elif cmd in ("translate", "translation"):
+        run_py("translate.py", *rest)
+    elif cmd in ("edit", "proofread", "rewrite"):
+        run_py("edit.py", *rest)
+    elif cmd in ("calc", "calculate", "convert"):
+        run_py("calc.py", *rest)
+    elif cmd in ("todo", "todos", "checklist"):
+        run_py("todo.py", *rest)
+    elif cmd in ("remind", "reminder", "reminders"):
+        run_py("remind.py", *rest)
+    elif cmd in ("remind-start", "reminder-start"):
+        run_py("remind-daemon.py")
     elif cmd in ("recipe", "recipes"):
         run_py("recipe.py", *rest)
     elif cmd in ("wiki", "wikipedia"):
         do_wiki(rest)
+    elif cmd in ("erowid", "drug", "drugs", "substance"):
+        run_py("erowid.py", *rest)
+    elif cmd in ("holybooks", "holy", "bible", "quran", "scripture"):
+        run_py("holybooks.py", *rest)
+    elif cmd in ("classics", "classic", "library", "books", "literature"):
+        run_py("classics.py", *rest)
+    elif cmd in ("blackjack", "bj", "21"):
+        run_py("blackjack.py")
+    elif cmd in ("mathquiz", "math", "arithmetic"):
+        run_py("mathquiz.py")
+    elif cmd in ("wordchain", "word-chain", "chain"):
+        run_py("wordchain.py")
     elif cmd == "web":
         do_web(rest)
     elif cmd == "ask":
@@ -559,6 +600,32 @@ def main():
         run_py("download-fringe.py", *rest)
     elif cmd in ("download-law", "download-legal"):
         run_py("download-law.py", *rest)
+    elif cmd in ("download-sacred", "download-sacred-texts"):
+        run_py("download-sacred-texts.py", *rest)
+    elif cmd in ("download-sacred-extended", "download-sacred-texts-extended"):
+        run_py("download-sacred-texts-extended.py", *rest)
+    elif cmd in ("download-declassified", "download-cia", "download-fbi"):
+        run_py("download-declassified.py", *rest)
+    elif cmd in ("download-alternative-history", "download-althistory",
+                 "download-kubrick", "download-tartaria",
+                 "download-nwo", "download-great-reset"):
+        run_py("download-alternative-history.py", *rest)
+    elif cmd in ("download-epstein", "download-epstein-docs"):
+        run_py("download-epstein-docs.py", *rest)
+    elif cmd in ("download-books", "download-archive-books", "download-hancock",
+                 "download-vallee", "download-strassman", "download-clones",
+                 "download-transhumanism"):
+        run_py("download-books-archive.py", *rest)
+    elif cmd in ("download-survival", "download-wilderness"):
+        run_py("download-survival.py", *rest)
+    elif cmd in ("download-homesteading", "download-farming"):
+        run_py("download-homesteading.py", *rest)
+    elif cmd in ("download-food-preservation", "download-food"):
+        run_py("download-food-preservation.py", *rest)
+    elif cmd in ("download-medical", "download-medicine"):
+        run_py("download-medical.py", *rest)
+    elif cmd in ("download-ham-radio", "download-ham", "download-comms"):
+        run_py("download-ham-radio.py", *rest)
     elif cmd in ("legal", "law", "rights"):
         run_py("legal.py", *rest)
     elif cmd in ("diagnose", "diag", "diagnostics"):
@@ -598,6 +665,18 @@ def main():
     elif cmd == "onboard":
         (CONFIG / "onboarding-done").unlink(missing_ok=True)
         run_py("onboarding.py", str(JARVIS_BASE))
+
+    # ── settings ──────────────────────────────────────────────────────────────
+    elif cmd in ("personality", "set-personality"):
+        run_py("set-personality.py", *rest)
+
+    # ── games ─────────────────────────────────────────────────────────────────
+    elif cmd in ("trivia", "quiz"):
+        run_py("trivia.py", *rest)
+    elif cmd == "hangman":
+        run_py("hangman.py", *rest)
+    elif cmd in ("word-scramble", "scramble", "unscramble"):
+        run_py("word-scramble.py", *rest)
 
     # ── default: treat as a question ─────────────────────────────────────────
     else:

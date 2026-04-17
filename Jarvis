@@ -234,6 +234,10 @@ EOF
     echo "Use 'Jarvis groq-on' to make Groq the default for all commands."
     exit 0
     ;;
+  personality|set-personality)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/set-personality.py" "$@"
+    ;;
   language|lang)
     exec "$venv_python" "$JARVIS_BASE/scripts/language.py"
     ;;
@@ -274,6 +278,53 @@ EOF
   firstaid|first-aid|fa)
     shift
     exec "$venv_python" "$JARVIS_BASE/scripts/firstaid.py" "$@"
+    ;;
+  symptom|symptoms|triage)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/symptom.py" "$@"
+    ;;
+  brainstorm|ideas)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/brainstorm.py" "$@"
+    ;;
+  pros|pros-cons|proscons)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/pros.py" "$@"
+    ;;
+  eli5|explain|simple)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/eli5.py" "$@"
+    ;;
+  compare|versus|vs)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/compare.py" "$@"
+    ;;
+  plan|goal)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/plan.py" "$@"
+    ;;
+  translate|translation)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/translate.py" "$@"
+    ;;
+  edit|proofread|rewrite)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/edit.py" "$@"
+    ;;
+  calc|calculate|convert)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/calc.py" "$@"
+    ;;
+  todo|todos|checklist|list)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/todo.py" "$@"
+    ;;
+  remind|reminder|reminders)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/remind.py" "$@"
+    ;;
+  remind-start|reminder-start)
+    exec "$venv_python" "$JARVIS_BASE/scripts/remind-daemon.py"
     ;;
   recipe|recipes)
     shift
@@ -561,6 +612,52 @@ EOF
     exec "$venv_python" \
       "$JARVIS_BASE/scripts/download-general-content.py" "$target" "${@:2}"
     ;;
+  download-culture)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-culture-occult.py" "${@:2}"
+    ;;
+  download-tech)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-tech-linux.py" "${@:2}"
+    ;;
+  download-pop-culture)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-pop-culture.py" "${@:2}"
+    ;;
+  download-misc)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-misc.py" "${@:2}"
+    ;;
+  download-law)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-law.py" "${@:2}"
+    ;;
+  download-fringe)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-fringe.py" "${@:2}"
+    ;;
+  download-sacred)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-sacred-texts.py" "${@:2}"
+    ;;
+  download-sacred-extended)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-sacred-texts-extended.py" "${@:2}"
+    ;;
+  download-declassified)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-declassified.py" "${@:2}"
+    ;;
+  personality)
+    shift
+    exec "$venv_python" "$JARVIS_BASE/scripts/set-personality.py" "$@"
+    ;;
+  download-survival)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-survival.py" "${@:2}"
+    ;;
+  download-homesteading)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-homesteading.py" "${@:2}"
+    ;;
+  download-food-preservation)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-food-preservation.py" "${@:2}"
+    ;;
+  download-medical)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-medical.py" "${@:2}"
+    ;;
+  download-ham-radio)
+    exec "$venv_python" "$JARVIS_BASE/scripts/download-ham-radio.py" "${@:2}"
+    ;;
   rebuild-index)
     echo "Rebuilding semantic index (this takes a few minutes)..."
     exec "$venv_python" "$JARVIS_BASE/scripts/build-index.py"
@@ -583,6 +680,15 @@ EOF
   onboard)
     rm -f "$JARVIS_BASE/config/onboarding-done"
     exec "$venv_python" "$JARVIS_BASE/scripts/onboarding.py" "$JARVIS_BASE"
+    ;;
+  trivia|quiz)
+    exec "$venv_python" "$JARVIS_BASE/scripts/trivia.py" "$@"
+    ;;
+  hangman)
+    exec "$venv_python" "$JARVIS_BASE/scripts/hangman.py" "$@"
+    ;;
+  word-scramble|scramble|unscramble)
+    exec "$venv_python" "$JARVIS_BASE/scripts/word-scramble.py" "$@"
     ;;
   *)
     if [[ $_fast_mode -eq 1 ]]; then

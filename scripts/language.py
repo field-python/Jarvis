@@ -72,6 +72,7 @@ def input_with_esc(prompt_str):
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     buf = []
+    _vlen = len(re.sub(r"\x1b\[[0-9;]*m", "", prompt_str))
     try:
         tty.setcbreak(fd)
         while True:
@@ -91,7 +92,15 @@ def input_with_esc(prompt_str):
             elif ch in ("\x7f", "\x08"):
                 if buf:
                     buf.pop()
-                    sys.stdout.write("\x08 \x08")
+                    try:
+                        cols = os.get_terminal_size().columns
+                    except OSError:
+                        cols = 80
+                    total = _vlen + len(buf) + 1
+                    lines_up = (total - 1) // cols
+                    if lines_up:
+                        sys.stdout.write("\033[%dA" % lines_up)
+                    sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))
                     sys.stdout.flush()
             elif ch == "\x03":
                 raise KeyboardInterrupt
@@ -104,15 +113,18 @@ def input_with_esc(prompt_str):
 
 
 def getch():
+    import select as _sel, os as _os
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
-        ch = sys.stdin.read(1)
+        ch = _os.read(fd, 1).decode("utf-8", errors="replace")
         if ch == "\x1b":
-            ch2 = sys.stdin.read(1)
-            ch3 = sys.stdin.read(1)
-            return f"\x1b{ch2}{ch3}"
+            r, _, _ = _sel.select([fd], [], [], 0.1)
+            if r:
+                rest = _os.read(fd, 2).decode("utf-8", errors="replace")
+                return "\x1b" + rest   # e.g. "\x1b[A"
+            return "\x1b"              # plain ESC
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -232,10 +244,14 @@ def draw_lang_menu(lang: str, selected: int):
     for i, (label, desc) in enumerate(LANG_MENU):
         num = f"{i + 1}."
         if i == selected:
-            print(f"  {BOLD}{GREEN}  {num} ▶  {label:<16}{RESET}  {GREEN}{DIM}{desc}{RESET}")
+            print(f"  {BOLD}{GREEN}  {num} ▶  {label}{RESET}")
         else:
-            print(f"  {DIM}  {num}    {label:<16}  {desc}{RESET}")
+            print(f"  {DIM}  {num}    {label}{RESET}")
     print()
+    # Show description for selected item below the list
+    sel_desc = LANG_MENU[selected][1]
+    if sel_desc:
+        print(f"  {YELLOW}{sel_desc}{RESET}")
     print(f"  {DIM}↑↓ or 1-{len(LANG_MENU)} to select  |  Enter to run  |  B back  |  Q quit{RESET}")
     print()
 
@@ -556,9 +572,8 @@ def lang_submenu(lang: str):
         draw_lang_menu(lang, selected)
         key = getch()
 
-        if key in ("q", "Q", "\x03"):
-            os.system("clear")
-            sys.exit(0)
+        if key in ("q", "Q", "\x1b", "\x03"):
+            return
 
         elif key in ("b", "B"):
             return
@@ -612,9 +627,9 @@ def main():
         draw_lang_select(selected)
         key = getch()
 
-        if key in ("q", "Q", "\x03"):
+        if key in ("q", "Q", "\x1b", "\x03"):
             os.system("clear")
-            sys.exit(0)
+            return
 
         elif key == "\x1b[A":   # up
             selected = (selected - 1) % len(LANGUAGES)

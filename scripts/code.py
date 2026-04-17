@@ -93,6 +93,27 @@ else:
     ext          = ".py"
     run_cmd      = [sys.executable]
 
+# ── model selection ───────────────────────────────────────────────────────────
+print()
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print(f"  Code  |  {lang_display}")
+print(f"  {task[:56]}")
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print()
+print("  1  Jarvis  — fast  (already loaded in memory)")
+print("  2  Coder   — slower  (qwen2.5-coder:7b, code-optimized)")
+print()
+_ch = read_key("  Model [1/2, Enter=fast]: ")
+if _ch is None:
+    sys.exit(0)
+if _ch == "2":
+    use_model   = CODE_MODEL
+    model_label = "Coder"
+else:
+    use_model   = os.environ.get("JARVIS_MODEL", "Jarvis")
+    model_label = "Jarvis"
+print()
+
 # ── search coding notes for context (keyword, fast) ──────────────────────────
 coding_notes = base_dir / "notes" / "coding"
 context_block = ""
@@ -132,12 +153,12 @@ tmp_prompt = tempfile.NamedTemporaryFile(
 tmp_prompt.write(prompt)
 tmp_prompt.close()
 
-print(f"Generating {lang_display} code...")
+print(f"  Generating {lang_display} code with {model_label}...")
 print()
 
 # ── stream generate while capturing ──────────────────────────────────────────
 proc = subprocess.Popen(
-    [sys.executable, generate_script, CODE_MODEL, host, tmp_prompt.name],
+    [sys.executable, generate_script, use_model, host, tmp_prompt.name],
     stdout=subprocess.PIPE, text=True, env=CODE_ENV
 )
 buf = io.StringIO()
@@ -164,6 +185,12 @@ out_file.write_text(code + "\n", encoding="utf-8")
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 print(f"  Saved: {out_file}")
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print()
+
+# ── re-display code for easy copy-paste ──────────────────────────────────────
+print(f"```{lang}")
+print(code)
+print("```")
 print()
 
 # ── optional run + self-correct loop ─────────────────────────────────────────
@@ -234,7 +261,7 @@ for attempt in range(1, MAX_FIX + 1):
     tmp_fix.close()
 
     fix_result = subprocess.run(
-        [sys.executable, generate_script, CODE_MODEL, host, tmp_fix.name],
+        [sys.executable, generate_script, use_model, host, tmp_fix.name],
         capture_output=True, text=True, env=CODE_ENV
     )
     os.unlink(tmp_fix.name)

@@ -32,6 +32,7 @@ def input_with_esc(prompt_str):
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     buf = []
+    _vlen = len(re.sub(r"\x1b\[[0-9;]*m", "", prompt_str))
     try:
         tty.setcbreak(fd)
         while True:
@@ -51,7 +52,15 @@ def input_with_esc(prompt_str):
             elif ch in ("\x7f", "\x08"):
                 if buf:
                     buf.pop()
-                    sys.stdout.write("\x08 \x08")
+                    try:
+                        cols = os.get_terminal_size().columns
+                    except OSError:
+                        cols = 80
+                    total = _vlen + len(buf) + 1
+                    lines_up = (total - 1) // cols
+                    if lines_up:
+                        sys.stdout.write("\033[%dA" % lines_up)
+                    sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))
                     sys.stdout.flush()
             elif ch == "\x03":
                 raise KeyboardInterrupt
@@ -119,30 +128,32 @@ def fetch_and_show(category_arg):
 
 category = sys.argv[1].lower() if len(sys.argv) > 1 else "world"
 
-# Independent / wire-service sources: AP, Reuters, The Hill, Reason
-# Fallback to AP RSS if a specialty feed is unavailable
+# Primary: Google News RSS (reliable, no auth needed)
+# Secondary: AP News RSS (sometimes blocks; tried as fallback)
 FEEDS = {
     # ── World / US ────────────────────────────────────────────────────────────
-    "world":         ("https://feeds.apnews.com/apnews/topnews",                   "World — AP News"),
-    "us":            ("https://feeds.apnews.com/apnews/usnews",                     "US News — AP"),
-    "politics":      ("https://feeds.apnews.com/apnews/politics",                   "Politics — AP"),
+    "world":         ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",          "World News"),
+    "us":            ("https://news.google.com/rss/topics/CAAqIggKIhxDQkFTRHdvSkoyNXVhV05vYjI5bkVnSmxiaUFBUAE?hl=en-US&gl=US&ceid=US:en", "US News"),
+    "politics":      ("https://news.google.com/rss/topics/CAAqIggKIhxDQkFTRHdvSkoyNXVhV05vYjI5bkVnSmxiaUFBUAE?hl=en-US&gl=US&ceid=US:en", "Politics"),
+
+    # ── Local / Regional ──────────────────────────────────────────────────────
+    "alaska":        ("https://www.adn.com/arc/outboundfeeds/rss/",                     "Alaska — ADN"),
+    "anchorage":     ("https://www.adn.com/arc/outboundfeeds/rss/",                     "Anchorage — ADN"),
 
     # ── Independent / alternative ─────────────────────────────────────────────
-    "reuters":       ("https://feeds.reuters.com/reuters/topNews",                  "Reuters Top News"),
-    "hill":          ("https://thehill.com/feed/",                                  "The Hill"),
-    "reason":        ("https://reason.com/feed/",                                   "Reason"),
-    "intercept":     ("https://theintercept.com/feed/?rss",                         "The Intercept"),
-    "propublica":    ("https://feeds.propublica.org/propublica/main",               "ProPublica"),
+    "hill":          ("https://thehill.com/feed/",                                       "The Hill"),
+    "reason":        ("https://reason.com/feed/",                                        "Reason"),
+    "intercept":     ("https://theintercept.com/feed/?rss",                              "The Intercept"),
+    "propublica":    ("https://feeds.propublica.org/propublica/main",                    "ProPublica"),
 
     # ── Specialty ─────────────────────────────────────────────────────────────
-    "tech":          ("https://feeds.apnews.com/apnews/technology",                 "Technology — AP"),
-    "technology":    ("https://feeds.apnews.com/apnews/technology",                 "Technology — AP"),
-    "science":       ("https://feeds.apnews.com/apnews/science",                    "Science — AP"),
-    "health":        ("https://feeds.apnews.com/apnews/health",                     "Health — AP"),
-    "business":      ("https://feeds.apnews.com/apnews/business",                   "Business — AP"),
-    "sports":        ("https://feeds.apnews.com/apnews/sports",                     "Sports — AP"),
-    "entertainment": ("https://feeds.apnews.com/apnews/entertainment",              "Entertainment — AP"),
-    "alaska":        ("https://feeds.apnews.com/apnews/alaska",                     "Alaska — AP"),
+    "tech":          ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Tech News"),
+    "technology":    ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Tech News"),
+    "science":       ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNR1p0T1hZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Science News"),
+    "health":        ("https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en",       "Health News"),
+    "business":      ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Business News"),
+    "sports":        ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Sports News"),
+    "entertainment": ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Entertainment"),
 }
 
 if not fetch_and_show(category):
@@ -153,8 +164,9 @@ categories_hint = "world  us  politics  tech  science  sports  ent  hill  reason
 while True:
     print(f"  {DIM}{'─' * 40}{RESET}")
     print()
+    print(f"  {DIM}Categories: {categories_hint}{RESET}")
     ans = input_with_esc(
-        f"  {YELLOW}Another category? (world/us/tech/science/sports/ent/politics/hill/reason/intercept / ESC): {RESET}"
+        f"  {YELLOW}Category (ESC to exit): {RESET}"
     )
     if ans is None:
         break

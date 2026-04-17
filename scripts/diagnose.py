@@ -16,7 +16,7 @@ base_dir        = script_dir.parent
 generate_script = str(base_dir / "scripts" / "generate.py")
 
 venv_python = os.environ.get("JARVIS_VENV", str(Path.home() / ".jarvis-venv")) + "/bin/python"
-model       = os.environ.get("JARVIS_MODEL", "Jarvis")
+model       = "Jarvis"   # always use local model — diagnostics never go to groq
 host        = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
 
 CYAN   = "\033[96m"

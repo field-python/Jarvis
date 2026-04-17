@@ -71,19 +71,38 @@ if backend == "groq":
         sys.exit(1)
 
     client = Groq(api_key=api_key)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        stream=True,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            stream=True,
+        )
 
-    def groq_chunks():
-        for chunk in response:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        def groq_chunks():
+            for chunk in response:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
 
-    stream_output(groq_chunks())
+        stream_output(groq_chunks())
+
+    except Exception as e:
+        name = type(e).__name__
+        msg  = str(e)
+        if "403" in msg or "PermissionDenied" in name:
+            print("\n[Jarvis] Groq API blocked (403 — Access Denied).", file=sys.stderr)
+            print("  This usually means your network or IP is being blocked by Groq.", file=sys.stderr)
+            print("  Try: check your internet connection, disable a VPN, or switch to Ollama.", file=sys.stderr)
+        elif "401" in msg or "Authentication" in name:
+            print("\n[Jarvis] Groq API key rejected (401).", file=sys.stderr)
+            print("  Run: Jarvis groq-key YOUR_API_KEY  to update it.", file=sys.stderr)
+        elif "429" in msg or "RateLimit" in name:
+            print("\n[Jarvis] Groq rate limit hit — wait a moment and try again.", file=sys.stderr)
+        elif "timeout" in msg.lower() or "ConnectionError" in name:
+            print("\n[Jarvis] Could not reach Groq — check your internet connection.", file=sys.stderr)
+        else:
+            print(f"\n[Jarvis] Groq request failed: {e}", file=sys.stderr)
+        sys.exit(1)
 
 else:
     import ollama

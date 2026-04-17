@@ -14,7 +14,10 @@ script_dir  = Path(__file__).parent.resolve()
 base_dir    = script_dir.parent
 config_file = base_dir / "config" / "archive-roots.txt"
 cache_dir   = base_dir / ".cache" / "pdftext"
-query       = " ".join(sys.argv[1:])
+raw_query   = " ".join(sys.argv[1:])
+# Support comma-separated terms: "term1, term2" runs two searches and merges results
+queries     = [q.strip() for q in raw_query.split(",") if q.strip()]
+query       = queries[0]  # used for single-query paths below
 
 roots = []
 if config_file.exists():
@@ -34,32 +37,26 @@ SKIP = [
     "favicon", "/index/improvements/", "/.cache/",
 ]
 
-if shutil.which("rg"):
+def run_rg(q):
     cmd = [
         "rg", "-n", "-S", "-m", "1",
         "--glob", "*.md", "--glob", "*.txt",
         "--glob", "*.html", "--glob", "*.htm", "--glob", "*.csv",
         "--glob", "!*.zim", "--glob", "!*.aria2",
-        query,
+        q,
     ] + roots + ([str(cache_dir)] if cache_dir.exists() else [])
-
     result = subprocess.run(cmd, capture_output=True, text=True)
     output = result.stdout
-
-    # Normalise PDF cache paths
     output = output.replace(str(cache_dir) + "/", "").replace(".pdf.txt:", ".pdf:")
+    return [line for line in output.splitlines()
+            if not any(p in line.lower() for p in SKIP)]
 
-    for line in output.splitlines():
-        low = line.lower()
-        if not any(p in low for p in SKIP):
-            print(line)
-else:
-    # Fallback: pure-Python search (slower but no extra deps)
+
+def run_python(q):
     try:
-        pattern = re.compile(query, re.IGNORECASE)
+        pattern = re.compile(q, re.IGNORECASE)
     except re.error:
-        pattern = re.compile(re.escape(query), re.IGNORECASE)
-
+        pattern = re.compile(re.escape(q), re.IGNORECASE)
     found = []
     for root in roots:
         for ext in ("*.md", "*.txt"):
@@ -75,5 +72,24 @@ else:
                             break
                 except Exception:
                     pass
+    return found
 
+
+if shutil.which("rg"):
+    seen  = set()
+    lines = []
+    for q in queries:
+        for line in run_rg(q):
+            if line not in seen:
+                seen.add(line)
+                lines.append(line)
+    print("\n".join(lines))
+else:
+    seen  = set()
+    found = []
+    for q in queries:
+        for entry in run_python(q):
+            if entry not in seen:
+                seen.add(entry)
+                found.append(entry)
     print("\n".join(found[:50]))

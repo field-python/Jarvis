@@ -23,6 +23,15 @@ now          = datetime.now()
 today        = now.strftime("%Y-%m-%d")
 current_date = f"{now.strftime('%A, %B')} {now.day}, {now.year}"
 current_time = now.strftime("%I:%M %p").lstrip("0")
+_hour        = now.hour
+if _hour < 12:
+    time_of_day = "morning"
+elif _hour < 17:
+    time_of_day = "afternoon"
+elif _hour < 21:
+    time_of_day = "evening"
+else:
+    time_of_day = "night"
 
 location_conf = base_dir / "config" / "location.conf"
 location = "your area"
@@ -38,28 +47,80 @@ print("━━━━━━━━━━━━━━━━━━━━━━━━�
 print()
 
 # ── skill of the day (always available — local model, no internet needed) ─────
-SKILL_CATEGORIES = [
-    "wilderness survival",
+# ── location-aware skill selection ───────────────────────────────────────────
+# Base categories relevant year-round everywhere
+SKILL_CATEGORIES_BASE = [
     "first aid and emergency medicine",
-    "fire making and fire safety",
-    "water sourcing and purification",
-    "food preservation (canning, smoking, drying)",
-    "foraging for wild edible plants",
-    "shelter building and insulation",
-    "knot tying and rope work",
-    "cold weather and winter survival",
-    "navigation without GPS (map, compass, stars)",
-    "fishing and trapping basics",
-    "hunting preparation and field dressing",
     "home repair and maintenance",
+    "cooking from scratch",
+    "tool sharpening and maintenance",
+    "knot tying and rope work",
+    "food preservation (canning, smoking, drying)",
+    "emergency preparedness",
+    "navigation without GPS (map, compass, stars)",
+    "animal care and livestock basics",
+    "medicinal plants and natural remedies",
     "off-grid power and energy",
     "gardening and soil preparation",
-    "cooking from scratch and camp cooking",
-    "tool sharpening and maintenance",
-    "animal care and livestock basics",
-    "emergency preparedness and bugging out",
-    "medicinal plants and natural remedies",
+    "water sourcing and purification",
 ]
+
+# Seasonal / climate-aware additions based on location keywords and month
+_month = now.month
+_loc_lower = location.lower()
+
+SKILL_CATEGORIES = list(SKILL_CATEGORIES_BASE)
+
+# Cold-climate / Alaska additions (year-round relevant in cold regions)
+if any(k in _loc_lower for k in ("alaska", "yukon", "canada", "montana", "idaho", "wyoming", "minnesota", "wisconsin", "maine", "vermont", "north dakota", "michigan")):
+    SKILL_CATEGORIES += [
+        "cold weather and winter survival",
+        "ice fishing and winter fishing",
+        "snowmobile and sled dog travel",
+        "firewood processing and wood heating",
+        "permafrost and frozen ground building",
+    ]
+    if _month in (10, 11, 12, 1, 2, 3):   # winter
+        SKILL_CATEGORIES += [
+            "avalanche safety and snow travel",
+            "cold-weather camp cooking",
+            "frostbite and hypothermia treatment",
+        ]
+    elif _month in (4, 5, 6):              # spring / breakup
+        SKILL_CATEGORIES += [
+            "spring foraging for wild plants",
+            "river and flood preparedness",
+            "bear awareness and deterrence",
+        ]
+    elif _month in (7, 8, 9):              # summer
+        SKILL_CATEGORIES += [
+            "salmon fishing and fish processing",
+            "berry picking and wild fruit preservation",
+            "wilderness fire safety",
+            "foraging for wild edible plants",
+        ]
+elif any(k in _loc_lower for k in ("florida", "texas", "arizona", "california", "georgia", "louisiana", "mississippi", "alabama", "hawaii")):
+    SKILL_CATEGORIES += [
+        "heat safety and hydration",
+        "hurricane and severe storm preparedness",
+        "tropical foraging and wild plants",
+        "water purification in humid climates",
+    ]
+    if _month in (6, 7, 8, 9):             # summer / storm season
+        SKILL_CATEGORIES += [
+            "cooling without electricity",
+            "shelter from extreme heat",
+        ]
+else:
+    # Generic additions for other regions
+    SKILL_CATEGORIES += [
+        "wilderness survival",
+        "fire making and fire safety",
+        "shelter building and insulation",
+        "fishing and trapping basics",
+        "hunting preparation and field dressing",
+        "camp cooking",
+    ]
 
 cache_dir  = base_dir / "cache" / "skill"
 cache_dir.mkdir(parents=True, exist_ok=True)
@@ -119,21 +180,53 @@ try:
 except Exception:
     weather = ""
 
-# ── fetch news ────────────────────────────────────────────────────────────────
+# ── fetch news (world + local) ────────────────────────────────────────────────
 print("Fetching news...")
-headlines  = ""
-news_ok    = False
-try:
-    feed = "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en"
-    req  = urllib.request.Request(feed, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        content = resp.read().decode("utf-8", errors="replace")
-    titles    = re.findall(r'<title>([^<]+)</title>', content)
-    titles    = [t for t in titles if "Google News" not in t][:8]
-    headlines = "\n".join(titles)
-    news_ok   = bool(headlines)
-except Exception:
-    headlines = ""
+
+def fetch_rss_titles(url, max_titles=5):
+    """Return up to max_titles headlines from an RSS feed, or []."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            content = resp.read().decode("utf-8", errors="replace")
+        titles = re.findall(r'<title>([^<]+)</title>', content)
+        titles = [t for t in titles if "Google News" not in t and "ADN" not in t
+                  and len(t) > 10][:max_titles]
+        return titles
+    except Exception:
+        return []
+
+world_titles = fetch_rss_titles(
+    "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", max_titles=4
+)
+
+# Pick a local feed based on location
+_loc_lower = location.lower()
+local_feed  = None
+local_label = None
+if any(k in _loc_lower for k in ("alaska", "anchorage", "juneau", "fairbanks")):
+    local_feed  = "https://www.adn.com/arc/outboundfeeds/rss/"
+    local_label = "Alaska (ADN)"
+elif any(k in _loc_lower for k in ("seattle", "washington")):
+    local_feed  = "https://www.seattletimes.com/feed/"
+    local_label = "Seattle Times"
+elif any(k in _loc_lower for k in ("new york", "nyc")):
+    local_feed  = "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
+    local_label = "NY Times"
+
+local_titles = fetch_rss_titles(local_feed, max_titles=3) if local_feed else []
+
+# Build headlines block: 2 world + up to 1 local = 3 stories
+selected = []
+selected += world_titles[:2]
+if local_titles:
+    selected.append(f"[{local_label}] {local_titles[0]}")
+elif len(world_titles) > 2:
+    selected.append(world_titles[2])
+
+headlines = "\n".join(selected)
+news_ok   = bool(headlines)
+local_ok  = bool(local_titles)
 
 # ── build prompt ──────────────────────────────────────────────────────────────
 weather_section = (
@@ -155,9 +248,9 @@ skill_section = (
 )
 
 prompt = (
-    f"You are Jarvis, an AI assistant giving a morning briefing. Today is {current_date}.\n\n"
-    f"Deliver a spoken morning briefing in this order:\n"
-    f"1. A brief greeting appropriate to the time of day\n"
+    f"You are Jarvis, an AI assistant giving a daily briefing. Today is {current_date} and it is currently {time_of_day} ({current_time}).\n\n"
+    f"Deliver a spoken briefing in this order:\n"
+    f"1. A brief 'good {time_of_day}' greeting — just one sentence\n"
     f"2. Weather update for {location} — skip this section entirely if weather is unavailable\n"
     f"3. Top news summary — skip this section entirely if news is unavailable\n"
     f"4. Introduce today's skill of the day by name and give one sentence on why it's worth knowing\n"
