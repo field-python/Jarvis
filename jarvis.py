@@ -530,6 +530,8 @@ def main():
         run_py("recipe.py", *rest)
     elif cmd in ("wiki", "wikipedia"):
         do_wiki(rest)
+    elif cmd in ("stocks", "stock", "market", "ticker"):
+        run_py("stocks.py", *rest)
     elif cmd in ("erowid", "drug", "drugs", "substance"):
         run_py("erowid.py", *rest)
     elif cmd in ("holybooks", "holy", "bible", "quran", "scripture"):

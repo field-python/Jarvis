@@ -24,6 +24,7 @@ MENU = [
     ("Symptom checker",    ["symptom"],                  False, ""),
     ("Recipes",            ["__submenu__", "recipes"],   False, ""),
     ("News & Weather",     ["__submenu__", "news"],      False, ""),
+    ("Stock Market",       ["__submenu__", "stocks"],    False, ""),
     ("Skill of the day",   ["skill"],                    False, ""),
     ("Notes",              ["__submenu__", "notes"],     False, ""),
     ("Web search",         ["web"],                      True,  "Search: "),
@@ -66,6 +67,12 @@ SUBMENUS = {
         ("Morning daily briefing",   ["daily"],    False, ""),
         ("News briefing",            ["news"],     False, ""),
         ("Weather",                  ["weather"],  True,  "Location (Enter for saved default): "),
+    ],
+    "stocks": [
+        ("Watchlist",                ["stocks"],                  False, ""),
+        ("Look up ticker",           ["stocks"],                  True,  "Ticker (e.g. AAPL, TSLA): "),
+        ("Add to watchlist",         ["stocks", "add"],           True,  "Ticker to add: "),
+        ("Remove from watchlist",    ["stocks", "remove"],        True,  "Ticker to remove: "),
     ],
     "search": [
         ("Wikipedia lookup",         ["wiki"],     True,  "Topic: "),
@@ -468,7 +475,7 @@ ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search"
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.
-SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal"}
+SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks"}
 
 
 def _loop_prompt(prompt):
