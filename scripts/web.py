@@ -74,7 +74,7 @@ def _ensure_ssl_cert(config_dir):
 
 try:
     from flask import (Flask, Response, redirect, render_template,
-                       request, session, url_for)
+                       request, session, url_for, jsonify)
 except ImportError:
     print("\n  Flask is not installed.")
     print("  Run setup.sh to install all dependencies, or:")
@@ -379,6 +379,137 @@ def run():
 
 
 # ── /history endpoint ─────────────────────────────────────────────────────────
+
+@app.route("/stocks")
+def stocks_page():
+    if not session.get("authenticated"):
+        return redirect(url_for("login"))
+    return render_template("stocks.html")
+
+
+@app.route("/api/stocks")
+def stocks_api():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        import yfinance as yf
+    except ImportError:
+        return jsonify({"error": "yfinance not installed"}), 500
+
+    symbol = request.args.get("symbol", "SPY").upper()
+    period = request.args.get("period", "1mo")
+
+    valid_periods = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "5y"}
+    if period not in valid_periods:
+        period = "1mo"
+
+    try:
+        t    = yf.Ticker(symbol)
+        info = t.info
+        hist = t.history(period=period)
+
+        if hist.empty:
+            return jsonify({"error": f"No data for {symbol}"}), 404
+
+        prices = [round(float(p), 4) for p in hist["Close"]]
+        labels = [str(d.date()) for d in hist.index]
+
+        price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose") or prices[-1]
+        prev  = info.get("regularMarketPreviousClose") or info.get("previousClose") or prices[-2]
+        change = round(price - prev, 4) if price and prev else 0
+        pct    = round(change / prev * 100, 2) if prev else 0
+
+        div_yield = info.get("dividendYield")
+        if div_yield:
+            div_yield = div_yield if div_yield < 1 else div_yield / 100
+            div_yield = round(div_yield * 100, 2)
+
+        return jsonify({
+            "symbol":    symbol,
+            "name":      info.get("shortName") or info.get("longName") or symbol,
+            "price":     round(float(price), 4) if price else None,
+            "change":    change,
+            "pct":       pct,
+            "labels":    labels,
+            "prices":    prices,
+            "market_cap": info.get("marketCap"),
+            "volume":    info.get("volume"),
+            "avg_volume":info.get("averageVolume"),
+            "hi52":      info.get("fiftyTwoWeekHigh"),
+            "lo52":      info.get("fiftyTwoWeekLow"),
+            "pe":        info.get("trailingPE"),
+            "div_yield": div_yield,
+            "sector":    info.get("sector", ""),
+            "exchange":  info.get("exchange", ""),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/stocks/watchlist/add", methods=["POST"])
+def stocks_watchlist_add():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    sym     = request.args.get("symbol", "").upper().strip()
+    wl_file = CONFIG / "watchlist.json"
+    wl = json.loads(wl_file.read_text()) if wl_file.exists() else ["SPY","AAPL","TSLA","NVDA","BTC-USD"]
+    if sym and sym not in wl:
+        wl.append(sym)
+        wl_file.write_text(json.dumps(wl, indent=2))
+    return jsonify({"ok": True, "watchlist": wl})
+
+
+@app.route("/api/stocks/watchlist/remove", methods=["POST"])
+def stocks_watchlist_remove():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    sym     = request.args.get("symbol", "").upper().strip()
+    wl_file = CONFIG / "watchlist.json"
+    wl = json.loads(wl_file.read_text()) if wl_file.exists() else []
+    wl = [s for s in wl if s != sym]
+    wl_file.write_text(json.dumps(wl, indent=2))
+    return jsonify({"ok": True, "watchlist": wl})
+
+
+@app.route("/api/stocks/watchlist")
+def stocks_watchlist_api():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        import yfinance as yf
+    except ImportError:
+        return jsonify({"error": "yfinance not installed"}), 500
+
+    wl_file = CONFIG / "watchlist.json"
+    if wl_file.exists():
+        try:
+            watchlist = json.loads(wl_file.read_text())
+        except Exception:
+            watchlist = ["SPY", "AAPL", "TSLA", "NVDA", "BTC-USD"]
+    else:
+        watchlist = ["SPY", "AAPL", "TSLA", "NVDA", "BTC-USD"]
+
+    results = []
+    for sym in watchlist:
+        try:
+            t    = yf.Ticker(sym)
+            info = t.info
+            price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+            prev  = info.get("regularMarketPreviousClose") or info.get("previousClose")
+            change = round(price - prev, 4) if price and prev else 0
+            pct    = round(change / prev * 100, 2) if prev else 0
+            results.append({
+                "symbol": sym,
+                "name":   (info.get("shortName") or sym)[:20],
+                "price":  round(float(price), 2) if price else None,
+                "change": change,
+                "pct":    pct,
+            })
+        except Exception:
+            results.append({"symbol": sym, "name": sym, "price": None, "change": 0, "pct": 0})
+
+    return jsonify(results)
+
 
 @app.route("/games")
 def games():

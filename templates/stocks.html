@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Jarvis — Stocks</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* Header */
+  .hdr { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #161b22; border-bottom: 1px solid #21262d; position: sticky; top: 0; z-index: 10; }
+  .hdr a { color: #8ab4d4; text-decoration: none; font-size: 1.1rem; }
+  .hdr-title { font-size: 1rem; font-weight: 600; color: #e6edf3; flex: 1; }
+  .hdr-time { font-size: 0.75rem; color: #6e7681; }
+
+  /* Watchlist strip */
+  .watchlist { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; background: #161b22; border-bottom: 1px solid #21262d; scrollbar-width: none; }
+  .watchlist::-webkit-scrollbar { display: none; }
+  .wl-chip { flex-shrink: 0; background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: all 0.15s; min-width: 90px; }
+  .wl-chip:hover { border-color: #58a6ff; }
+  .wl-chip.active { border-color: #58a6ff; background: #1f3044; }
+  .wl-sym { font-size: 0.8rem; font-weight: 700; color: #e6edf3; }
+  .wl-price { font-size: 0.75rem; color: #8b949e; }
+  .wl-chg { font-size: 0.7rem; font-weight: 600; }
+  .up { color: #3fb950; }
+  .dn { color: #f85149; }
+
+  /* Main content */
+  .main { padding: 14px; max-width: 900px; margin: 0 auto; }
+
+  /* Ticker search */
+  .search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .ticker-input { flex: 1; background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 10px 14px; color: #e6edf3; font-size: 0.95rem; outline: none; text-transform: uppercase; }
+  .ticker-input::placeholder { text-transform: none; color: #6e7681; }
+  .ticker-input:focus { border-color: #58a6ff; }
+  .go-btn { background: #1f6feb; border: none; border-radius: 8px; padding: 10px 18px; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+  .go-btn:hover { background: #388bfd; }
+
+  /* Stock header */
+  .stock-hdr { margin-bottom: 12px; }
+  .stock-name { font-size: 1.1rem; font-weight: 700; color: #e6edf3; }
+  .stock-sym { font-size: 0.8rem; color: #6e7681; margin-left: 6px; }
+  .stock-sector { font-size: 0.75rem; color: #6e7681; margin-top: 2px; }
+  .price-row { display: flex; align-items: baseline; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+  .price-big { font-size: 2rem; font-weight: 700; color: #e6edf3; }
+  .price-chg { font-size: 1rem; font-weight: 600; }
+
+  /* Period selector */
+  .periods { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .per-btn { background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 5px 12px; color: #8b949e; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .per-btn:hover { border-color: #58a6ff; color: #e6edf3; }
+  .per-btn.active { background: #1f3044; border-color: #58a6ff; color: #58a6ff; font-weight: 600; }
+
+  /* Chart */
+  .chart-wrap { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 14px; margin-bottom: 14px; position: relative; }
+  .chart-wrap canvas { max-height: 260px; }
+  .chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #6e7681; font-size: 0.85rem; background: #161b22; border-radius: 10px; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .stat-card { background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 10px 12px; }
+  .stat-label { font-size: 0.7rem; color: #6e7681; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-val { font-size: 0.95rem; font-weight: 600; color: #e6edf3; }
+
+  /* Error / loading */
+  .msg { text-align: center; padding: 40px 20px; color: #6e7681; font-size: 0.9rem; }
+  .spinner { width: 24px; height: 24px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Watchlist management */
+  .wl-manage { display: flex; gap: 8px; margin-top: 4px; }
+  .wl-btn { background: none; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; color: #8b949e; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
+  .wl-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+  .wl-btn.remove { border-color: #30363d; }
+  .wl-btn.remove:hover { border-color: #f85149; color: #f85149; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="/">← Back</a>
+  <span class="hdr-title">📈 Stock Market</span>
+  <span class="hdr-time" id="clock"></span>
+</div>
+
+<!-- Watchlist strip -->
+<div class="watchlist" id="watchlist">
+  <div style="color:#6e7681;font-size:0.8rem;padding:4px 0;align-self:center">Loading watchlist...</div>
+</div>
+
+<div class="main">
+
+  <!-- Ticker search -->
+  <div class="search-row">
+    <input class="ticker-input" id="tickerInput" type="text" placeholder="Enter ticker (e.g. MSFT, BTC-USD)" maxlength="12">
+    <button class="go-btn" onclick="loadTicker()">Go</button>
+  </div>
+
+  <!-- Stock header -->
+  <div class="stock-hdr" id="stockHdr" style="display:none">
+    <div>
+      <span class="stock-name" id="sName"></span>
+      <span class="stock-sym" id="sSym"></span>
+    </div>
+    <div class="stock-sector" id="sSector"></div>
+    <div class="price-row">
+      <span class="price-big" id="sPrice"></span>
+      <span class="price-chg" id="sChg"></span>
+    </div>
+    <div class="wl-manage">
+      <button class="wl-btn" id="wlAddBtn" onclick="addToWatchlist()">+ Add to Watchlist</button>
+      <button class="wl-btn remove" id="wlRemBtn" onclick="removeFromWatchlist()" style="display:none">✕ Remove</button>
+    </div>
+  </div>
+
+  <!-- Period selector -->
+  <div class="periods" id="periodBtns" style="display:none">
+    <button class="per-btn" data-p="1d" onclick="setPeriod(this)">1D</button>
+    <button class="per-btn" data-p="5d" onclick="setPeriod(this)">5D</button>
+    <button class="per-btn active" data-p="1mo" onclick="setPeriod(this)">1M</button>
+    <button class="per-btn" data-p="3mo" onclick="setPeriod(this)">3M</button>
+    <button class="per-btn" data-p="6mo" onclick="setPeriod(this)">6M</button>
+    <button class="per-btn" data-p="1y" onclick="setPeriod(this)">1Y</button>
+    <button class="per-btn" data-p="5y" onclick="setPeriod(this)">5Y</button>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrap" id="chartWrap" style="display:none">
+    <div class="chart-loading" id="chartLoading" style="display:none">
+      <div><div class="spinner"></div>Loading...</div>
+    </div>
+    <canvas id="priceChart"></canvas>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Initial message -->
+  <div class="msg" id="initMsg">
+    <div>Select a ticker from your watchlist above,<br>or type one in the search box.</div>
+  </div>
+
+</div>
+
+<script>
+let chart      = null;
+let curSymbol  = null;
+let curPeriod  = "1mo";
+let watchlist  = [];
+
+// ── Clock ──────────────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+}
+updateClock();
+setInterval(updateClock, 30000);
+
+// ── Watchlist ──────────────────────────────────────────────────────────────────
+async function loadWatchlist() {
+  try {
+    const r = await fetch("/api/stocks/watchlist");
+    const data = await r.json();
+    watchlist = data.map(d => d.symbol);
+    renderWatchlist(data);
+    if (data.length > 0) loadSymbol(data[0].symbol);
+  } catch(e) {
+    document.getElementById("watchlist").innerHTML =
+      '<div style="color:#f85149;font-size:0.8rem;padding:4px 0;align-self:center">Failed to load watchlist</div>';
+  }
+}
+
+function renderWatchlist(data) {
+  const el = document.getElementById("watchlist");
+  el.innerHTML = data.map(d => {
+    const up    = d.change >= 0;
+    const sign  = up ? "+" : "";
+    const cls   = up ? "up" : "dn";
+    const arrow = up ? "▲" : "▼";
+    const price = d.price != null ? "$" + d.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "N/A";
+    return `<div class="wl-chip" data-sym="${d.symbol}" onclick="loadSymbol('${d.symbol}')">
+      <div class="wl-sym">${d.symbol}</div>
+      <div class="wl-price">${price}</div>
+      <div class="wl-chg ${cls}">${arrow} ${sign}${d.pct.toFixed(2)}%</div>
+    </div>`;
+  }).join("");
+}
+
+function setActiveChip(sym) {
+  document.querySelectorAll(".wl-chip").forEach(c => {
+    c.classList.toggle("active", c.dataset.sym === sym);
+  });
+}
+
+// ── Load symbol ────────────────────────────────────────────────────────────────
+async function loadSymbol(sym, period) {
+  sym    = sym.toUpperCase();
+  period = period || curPeriod;
+  curSymbol = sym;
+  curPeriod = period;
+
+  document.getElementById("initMsg").style.display = "none";
+  document.getElementById("chartWrap").style.display = "block";
+  document.getElementById("periodBtns").style.display = "flex";
+  document.getElementById("stockHdr").style.display = "block";
+  document.getElementById("chartLoading").style.display = "flex";
+  document.getElementById("statsGrid").innerHTML = "";
+
+  setActiveChip(sym);
+
+  try {
+    const r = await fetch(`/api/stocks?symbol=${encodeURIComponent(sym)}&period=${period}`);
+    const d = await r.json();
+    document.getElementById("chartLoading").style.display = "none";
+
+    if (d.error) { showError(d.error); return; }
+
+    renderHeader(d);
+    renderChart(d);
+    renderStats(d);
+    updateWLButtons(sym);
+  } catch(e) {
+    document.getElementById("chartLoading").style.display = "none";
+    showError("Failed to fetch data.");
+  }
+}
+
+function loadTicker() {
+  const val = document.getElementById("tickerInput").value.trim().toUpperCase();
+  if (val) loadSymbol(val);
+  document.getElementById("tickerInput").value = "";
+}
+
+document.getElementById("tickerInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") loadTicker();
+});
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function renderHeader(d) {
+  document.getElementById("sName").textContent  = d.name;
+  document.getElementById("sSym").textContent   = `(${d.symbol})`;
+  document.getElementById("sSector").textContent = d.sector ? `${d.sector} · ${d.exchange}` : d.exchange;
+
+  const price = d.price != null ? "$" + d.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4}) : "N/A";
+  document.getElementById("sPrice").textContent = price;
+
+  const up   = d.change >= 0;
+  const sign = up ? "+" : "";
+  const arrow = up ? "▲" : "▼";
+  const chgEl = document.getElementById("sChg");
+  chgEl.textContent  = `${arrow} ${sign}${d.change.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+  chgEl.className    = "price-chg " + (up ? "up" : "dn");
+}
+
+function renderChart(d) {
+  const up    = d.change >= 0;
+  const color = up ? "#3fb950" : "#f85149";
+  const fill  = up ? "rgba(63,185,80,0.12)" : "rgba(248,81,73,0.12)";
+
+  if (chart) { chart.destroy(); chart = null; }
+
+  const ctx = document.getElementById("priceChart").getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 260);
+  grad.addColorStop(0, up ? "rgba(63,185,80,0.25)" : "rgba(248,81,73,0.25)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: d.labels,
+      datasets: [{
+        data: d.prices,
+        borderColor: color,
+        borderWidth: 2,
+        backgroundColor: grad,
+        fill: true,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "#21262d",
+          borderColor: "#30363d",
+          borderWidth: 1,
+          titleColor: "#8b949e",
+          bodyColor: "#e6edf3",
+          callbacks: {
+            label: ctx => " $" + ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4})
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: "#21262d" },
+          ticks: { color: "#6e7681", maxTicksLimit: 6, font: { size: 11 } },
+        },
+        y: {
+          position: "right",
+          grid: { color: "#21262d" },
+          ticks: {
+            color: "#8b949e",
+            font: { size: 11 },
+            callback: v => "$" + v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
+          }
+        }
+      },
+      interaction: { mode: "index", intersect: false }
+    }
+  });
+}
+
+function fmtNum(n) {
+  if (n == null) return "N/A";
+  if (Math.abs(n) >= 1e12) return "$" + (n/1e12).toFixed(2) + "T";
+  if (Math.abs(n) >= 1e9)  return "$" + (n/1e9).toFixed(2) + "B";
+  if (Math.abs(n) >= 1e6)  return "$" + (n/1e6).toFixed(2) + "M";
+  return "$" + n.toLocaleString();
+}
+
+function renderStats(d) {
+  const stats = [
+    ["52W High",    d.hi52    != null ? "$" + d.hi52.toFixed(2)  : "N/A"],
+    ["52W Low",     d.lo52    != null ? "$" + d.lo52.toFixed(2)  : "N/A"],
+    ["Market Cap",  fmtNum(d.market_cap)],
+    ["Volume",      d.volume  != null ? d.volume.toLocaleString() : "N/A"],
+    ["Avg Volume",  d.avg_volume != null ? d.avg_volume.toLocaleString() : "N/A"],
+    ["P/E Ratio",   d.pe      != null ? d.pe.toFixed(2) : "N/A"],
+    ["Div Yield",   d.div_yield != null ? d.div_yield.toFixed(2) + "%" : "N/A"],
+  ];
+  document.getElementById("statsGrid").innerHTML = stats.map(([label, val]) =>
+    `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-val">${val}</div></div>`
+  ).join("");
+}
+
+function showError(msg) {
+  document.getElementById("statsGrid").innerHTML =
+    `<div class="msg" style="grid-column:1/-1">${msg}</div>`;
+}
+
+// ── Period ─────────────────────────────────────────────────────────────────────
+function setPeriod(btn) {
+  document.querySelectorAll(".per-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (curSymbol) loadSymbol(curSymbol, btn.dataset.p);
+}
+
+// ── Watchlist management ───────────────────────────────────────────────────────
+function updateWLButtons(sym) {
+  const inWL = watchlist.includes(sym);
+  document.getElementById("wlAddBtn").style.display = inWL ? "none"  : "inline-block";
+  document.getElementById("wlRemBtn").style.display = inWL ? "inline-block" : "none";
+}
+
+async function addToWatchlist() {
+  if (!curSymbol) return;
+  await fetch(`/api/stocks/watchlist/add?symbol=${encodeURIComponent(curSymbol)}`, {method:"POST"});
+  watchlist.push(curSymbol);
+  updateWLButtons(curSymbol);
+  loadWatchlist();
+}
+
+async function removeFromWatchlist() {
+  if (!curSymbol) return;
+  await fetch(`/api/stocks/watchlist/remove?symbol=${encodeURIComponent(curSymbol)}`, {method:"POST"});
+  watchlist = watchlist.filter(s => s !== curSymbol);
+  updateWLButtons(curSymbol);
+  loadWatchlist();
+}
+
+loadWatchlist();
+</script>
+</body>
+</html>
