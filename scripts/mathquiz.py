@@ -75,7 +75,7 @@ def input_answer(prompt_str):
                     except OSError:
                         cols = 80
                     total = _vlen + len(buf) + 1
-                    lines_up = (total - 1) // cols
+                    lines_up = total // cols
                     if lines_up:
                         sys.stdout.write("\033[%dA" % lines_up)
                     sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))

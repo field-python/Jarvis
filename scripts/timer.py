@@ -140,7 +140,7 @@ def input_with_esc(prompt_str):
                     except OSError:
                         cols = 80
                     total = _vlen + len(buf) + 1
-                    lines_up = (total - 1) // cols
+                    lines_up = total // cols
                     if lines_up:
                         sys.stdout.write("\033[%dA" % lines_up)
                     sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))
@@ -173,7 +173,7 @@ def main():
     global _timer_id
 
     if len(sys.argv) < 2:
-        print("Usage: Jarvis timer <duration>  [e.g. 10m, 1h30m, 45s]")
+        print("Usage: Jarvis timer <duration>  [e.g. 1h, 10m, 30s]")
         sys.exit(1)
 
     inp           = " ".join(sys.argv[1:])
@@ -181,7 +181,7 @@ def main():
 
     if total_seconds <= 0:
         print(f"  Couldn't parse duration: {inp}")
-        print("  Try: 10m, 30s, 1h, 1h30m")
+        print("  Try: 1h, 10m, 30s, 1h30m")
         sys.exit(1)
 
     print()

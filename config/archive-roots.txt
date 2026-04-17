@@ -1,0 +1,8 @@
+# Jarvis archive roots — one path per line
+# Add USB drives or extra folders here when attached
+/home/field_python/jarvis
+/media/field_python/ARCHIVE/jarvis/notes
+/media/field_python/ARCHIVE/jarvis/pages
+/media/field_python/ARCHIVE/jarvis/docs
+/media/field_python/ARCHIVE/jarvis/index/source-packages
+/media/field_python/ARCHIVE/jarvis/erowid

@@ -40,9 +40,12 @@ SKIP = [
 def run_rg(q):
     cmd = [
         "rg", "-n", "-S", "-m", "1",
+        "--no-ignore",          # respect our roots, not .gitignore (notes/ is gitignored)
         "--glob", "*.md", "--glob", "*.txt",
         "--glob", "*.html", "--glob", "*.htm", "--glob", "*.csv",
         "--glob", "!*.zim", "--glob", "!*.aria2",
+        "--glob", "!chroma_db/**", "--glob", "!cache/**",
+        "--glob", "!__pycache__/**", "--glob", "!*.pyc",
         q,
     ] + roots + ([str(cache_dir)] if cache_dir.exists() else [])
     result = subprocess.run(cmd, capture_output=True, text=True)
