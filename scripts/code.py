@@ -16,13 +16,18 @@ script_dir      = Path(__file__).parent.resolve()
 base_dir        = script_dir.parent
 generate_script = str(base_dir / "scripts" / "generate.py")
 
-CODE_MODEL = "qwen2.5-coder:7b"
-host       = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
-output_dir = Path.home() / "jarvis-code"
-MAX_FIX    = 3
+CODE_MODEL   = "qwen2.5-coder:7b"
+host         = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
+output_dir   = Path.home() / "jarvis-code"
+MAX_FIX      = 3
 
 # Code generation always uses local Ollama — qwen2.5-coder isn't available on Groq
 CODE_ENV = {**os.environ, "JARVIS_BACKEND": "ollama", "JARVIS_THINK": "0"}
+
+# --coder flag: use qwen2.5-coder:7b instead of Jarvis (slower — loads a second model)
+_use_coder = "--coder" in sys.argv
+if _use_coder:
+    sys.argv.remove("--coder")
 
 
 def read_key(prompt_str):
@@ -50,6 +55,7 @@ def read_key(prompt_str):
 
 if len(sys.argv) < 2:
     print('Usage: Jarvis code "describe what you want to build"')
+    print('       Jarvis code --coder "task"   (use qwen2.5-coder:7b — slower)')
     print()
     print("Examples:")
     print('  Jarvis code "a script that renames all jpg files with today\'s date"')
@@ -100,18 +106,15 @@ print(f"  Code  |  {lang_display}")
 print(f"  {task[:56]}")
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 print()
-print("  1  Jarvis  — fast  (already loaded in memory)")
-print("  2  Coder   — slower  (qwen2.5-coder:7b, code-optimized)")
-print()
-_ch = read_key("  Model [1/2, Enter=fast]: ")
-if _ch is None:
-    sys.exit(0)
-if _ch == "2":
+
+if _use_coder:
     use_model   = CODE_MODEL
-    model_label = "Coder"
+    model_label = "Coder (qwen2.5-coder:7b)"
+    print(f"  Using specialized coder model (slower — loading from disk)...")
 else:
     use_model   = os.environ.get("JARVIS_MODEL", "Jarvis")
     model_label = "Jarvis"
+    print(f"  Tip: add --coder for the specialized code model (slower)")
 print()
 
 # ── search coding notes for context (keyword, fast) ──────────────────────────

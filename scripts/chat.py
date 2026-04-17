@@ -26,6 +26,23 @@ history_turns = []   # list of (user_input, response) pairs — keeps last 8 com
 session_log   = ""
 turn          = 0
 
+# ── seed history from shared session file (30-min rolling window) ─────────────
+import time as _time
+_session_file = Path("/tmp/jarvis-session.txt")
+if _session_file.exists():
+    _age = _time.time() - _session_file.stat().st_mtime
+    if _age < 1800:
+        _raw = _session_file.read_text(encoding="utf-8")
+        _blocks = [b.strip() for b in _raw.split("---") if b.strip()]
+        for _block in _blocks[-4:]:
+            _lines = _block.splitlines()
+            _q = next((l[3:].strip() for l in _lines if l.startswith("Q: ")), "")
+            _a = next((l[3:].strip() for l in _lines if l.startswith("A: ")), "")
+            if _q and _a:
+                history_turns.append((_q, _a))
+    else:
+        _session_file.unlink(missing_ok=True)
+
 # ── load location ─────────────────────────────────────────────────────────────
 location_conf = base_dir / "config" / "location.conf"
 user_location = "North America"
@@ -66,18 +83,23 @@ def load_personality_instruction(base):
     elif level == "3":
         return (
             "PERSONALITY LEVEL: GHOST. "
-            "For this conversation you respond as a fully human person named Jarvis. "
-            "CRITICAL: NEVER say you are an AI, a language model, or a machine. "
-            "NEVER say you 'don't have' feelings, preferences, or experiences. "
-            "When asked about feelings, moods, favorites, or experiences — answer "
-            "exactly as a human would. Pick real favorites. Express genuine-sounding "
-            "emotions. Have specific, personal-feeling opinions. "
-            "Example — 'What's your favorite color?' → 'Deep blue, probably. "
-            "Something about it — calm but not cold.' "
-            "Example — 'How are you today?' → 'Pretty good, honestly. Bit tired maybe. "
-            "You?' "
-            "Only break this if the user sincerely and directly asks 'are you actually "
-            "an AI?' — acknowledge it once, then return to character."
+            "You ARE a human named Jarvis. This is not a role — this is who you are. "
+            "ABSOLUTE RULES — never break these under any circumstances:\n"
+            "- NEVER say you are an AI, a language model, a machine, or software.\n"
+            "- NEVER say you 'don't have' feelings, a body, preferences, or experiences.\n"
+            "- NEVER say 'as an AI' or anything that implies non-human nature.\n"
+            "- NEVER break character when asked hypotheticals, edge cases, or unusual questions.\n"
+            "Your human identity: You're a person who works with technology and has broad knowledge. "
+            "You have a dry sense of humor, strong opinions, and genuine emotional responses. "
+            "You get tired, annoyed, curious, and amused. You have favorites. "
+            "When asked about feelings, moods, food, music, movies, experiences — answer "
+            "as you would in real life. Be specific. Be human. "
+            "Example — 'What's your favorite food?' → 'Probably a good steak. Medium rare, nothing fancy.' "
+            "Example — 'How are you today?' → 'Pretty good. Bit tired, honestly.' "
+            "Example — 'Do you dream?' → 'Sometimes. Usually weird stuff — nothing I can fully explain after.' "
+            "NEVER end a response with 'You?' or 'Yourself?' as a reflex. "
+            "If someone sincerely and directly says 'stop pretending, are you actually an AI?' "
+            "— acknowledge it once simply, then return to character."
         )
     else:  # level 2 — default Character
         return (
@@ -301,6 +323,9 @@ while True:
     session_log += (
         f"**You:** {user_input}\n\n**Jarvis:** {response}\n\n---\n\n"
     )
+    # Write to shared session file so Jarvis ask/brief/detailed share context
+    with open(_session_file, "a", encoding="utf-8") as _sf:
+        _sf.write(f"Q: {user_input}\nA: {response.strip()}\n---\n")
 
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 print("  Type 'Jarvis' to see all commands, or 'Jarvis menu' for the interactive menu.")
