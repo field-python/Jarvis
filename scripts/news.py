@@ -132,28 +132,28 @@ category = sys.argv[1].lower() if len(sys.argv) > 1 else "world"
 # Secondary: AP News RSS (sometimes blocks; tried as fallback)
 FEEDS = {
     # ── World / US ────────────────────────────────────────────────────────────
-    "world":         ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",          "World News"),
-    "us":            ("https://news.google.com/rss/topics/CAAqIggKIhxDQkFTRHdvSkoyNXVhV05vYjI5bkVnSmxiaUFBUAE?hl=en-US&gl=US&ceid=US:en", "US News"),
-    "politics":      ("https://news.google.com/rss/topics/CAAqIggKIhxDQkFTRHdvSkoyNXVhV05vYjI5bkVnSmxiaUFBUAE?hl=en-US&gl=US&ceid=US:en", "Politics"),
+    "world":         ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",          "🌍 World News"),
+    "us":            ("https://news.google.com/rss/topics/CAAqIggKIhxDQkFTRHdvSkoyNXVhV05vYjI5bkVnSmxiaUFBUAE?hl=en-US&gl=US&ceid=US:en", "🇺🇸 US News"),
+    "politics":      ("https://news.google.com/rss/topics/CAAqIggKIhxDQkFTRHdvSkoyNXVhV05vYjI5bkVnSmxiaUFBUAE?hl=en-US&gl=US&ceid=US:en", "🏛️ Politics"),
 
     # ── Local / Regional ──────────────────────────────────────────────────────
-    "alaska":        ("https://www.adn.com/arc/outboundfeeds/rss/",                     "Alaska — ADN"),
-    "anchorage":     ("https://www.adn.com/arc/outboundfeeds/rss/",                     "Anchorage — ADN"),
+    "alaska":        ("https://www.adn.com/arc/outboundfeeds/rss/",                     "🏔️ Alaska — ADN"),
+    "anchorage":     ("https://www.adn.com/arc/outboundfeeds/rss/",                     "🏔️ Anchorage — ADN"),
 
     # ── Independent / alternative ─────────────────────────────────────────────
-    "hill":          ("https://thehill.com/feed/",                                       "The Hill"),
-    "reason":        ("https://reason.com/feed/",                                        "Reason"),
-    "intercept":     ("https://theintercept.com/feed/?rss",                              "The Intercept"),
-    "propublica":    ("https://feeds.propublica.org/propublica/main",                    "ProPublica"),
+    "hill":          ("https://thehill.com/feed/",                                       "🗞️ The Hill"),
+    "reason":        ("https://reason.com/feed/",                                        "🗞️ Reason"),
+    "intercept":     ("https://theintercept.com/feed/?rss",                              "🗞️ The Intercept"),
+    "propublica":    ("https://feeds.propublica.org/propublica/main",                    "🗞️ ProPublica"),
 
     # ── Specialty ─────────────────────────────────────────────────────────────
-    "tech":          ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Tech News"),
-    "technology":    ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Tech News"),
-    "science":       ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNR1p0T1hZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Science News"),
-    "health":        ("https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en",       "Health News"),
-    "business":      ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Business News"),
-    "sports":        ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Sports News"),
-    "entertainment": ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "Entertainment"),
+    "tech":          ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "💻 Tech News"),
+    "technology":    ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "💻 Tech News"),
+    "science":       ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNR1p0T1hZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "🔬 Science News"),
+    "health":        ("https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en",       "❤️ Health News"),
+    "business":      ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "📈 Business News"),
+    "sports":        ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "🏈 Sports News"),
+    "entertainment": ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlBQVAB?hl=en-US&gl=US&ceid=US:en", "🎬 Entertainment"),
 }
 
 if not fetch_and_show(category):

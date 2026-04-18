@@ -41,7 +41,7 @@ if location_conf.exists():
 
 print()
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"  Jarvis Daily Briefing")
+print(f"  📅 Jarvis Daily Briefing")
 print(f"  {current_date}  |  {current_time}")
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 print()
@@ -297,7 +297,7 @@ print()
 # ── skill of the day block ────────────────────────────────────────────────────
 if skill_text:
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"  Skill of the Day  |  {category.title()}")
+    print(f"  🛠️ Skill of the Day  |  {category.title()}")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
     print(skill_text)

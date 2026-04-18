@@ -7,8 +7,11 @@ import os
 import io
 import re
 import readline
+import select
 import subprocess
 import tempfile
+import tty
+import termios
 from pathlib import Path
 from datetime import datetime
 
@@ -168,6 +171,56 @@ print("━━━━━━━━━━━━━━━━━━━━━━━━�
 print()
 
 
+def input_with_esc(prompt_str):
+    """Like input() but returns None on ESC. Keeps readline history via manual echo."""
+    sys.stdout.write(prompt_str)
+    sys.stdout.flush()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    buf = []
+    _vlen = len(re.sub(r"\x1b\[[0-9;]*m", "", prompt_str))
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if r:
+                    sys.stdin.read(2)   # discard arrow key sequence
+                    continue
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return None
+            elif ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                text = "".join(buf)
+                if text.strip():
+                    readline.add_history(text)
+                return text
+            elif ch in ("\x7f", "\x08"):
+                if buf:
+                    buf.pop()
+                    try:
+                        cols = os.get_terminal_size().columns
+                    except OSError:
+                        cols = 80
+                    total = _vlen + len(buf) + 1
+                    lines_up = total // cols
+                    if lines_up:
+                        sys.stdout.write("\033[%dA" % lines_up)
+                    sys.stdout.write("\r\033[J" + prompt_str + "".join(buf))
+                    sys.stdout.flush()
+            elif ch == "\x03":
+                raise KeyboardInterrupt
+            elif ord(ch) >= 32:
+                buf.append(ch)
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 def stream_and_capture(cmd):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
     buf  = io.StringIO()
@@ -182,11 +235,16 @@ def stream_and_capture(cmd):
 # ── main loop ─────────────────────────────────────────────────────────────────
 while True:
     try:
-        user_input = input("You: ").strip()
+        user_input = input_with_esc("You: ")
     except (EOFError, KeyboardInterrupt):
         print("\nJarvis: Goodbye.")
         break
 
+    if user_input is None:
+        print("Jarvis: Goodbye.")
+        break
+
+    user_input = user_input.strip()
     if not user_input:
         continue
 

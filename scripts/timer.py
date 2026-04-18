@@ -236,7 +236,7 @@ def main():
         print()
         all_done = all(info.get("done") for info in _timers.values())
         if all_done:
-            print(f"  {GREEN}{BOLD}All timers complete!{RESET}")
+            print(f"  {GREEN}{BOLD}⏰ All timers complete!{RESET}")
         print()
 
     except KeyboardInterrupt:
