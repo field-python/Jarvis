@@ -228,8 +228,11 @@ def main():
     args = sys.argv[1:]
 
     if not args:
-        show_watchlist()
-        print(f"  {DIM}Tip: Jarvis stocks AAPL   |   Jarvis stocks add TSLA   |   Jarvis stocks remove TSLA{R}\n")
+        wl = load_watchlist()
+        if not wl:
+            print(f"{YL}Watchlist is empty. Add tickers with: Jarvis stocks add AAPL{R}\n")
+            return
+        interactive_mode(wl)
         return
 
     cmd = args[0].lower()
@@ -263,7 +266,11 @@ def main():
         return
 
     if cmd == "watchlist":
-        show_watchlist()
+        wl = load_watchlist()
+        if wl:
+            interactive_mode(wl)
+        else:
+            print(f"{YL}Watchlist is empty. Add tickers with: Jarvis stocks add AAPL{R}\n")
         return
 
     # ticker(s) passed — interactive viewer
