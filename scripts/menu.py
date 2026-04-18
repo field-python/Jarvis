@@ -565,7 +565,10 @@ def run_command(label, cmd_args, needs_input, prompt):
 
     if not loop:
         print(f"  {DIM}Press any key to return to menu...{RESET}", end="", flush=True)
-        getch()
+        while True:
+            k = getch()
+            if not k.startswith("\x1b["):  # ignore arrow keys, accept everything else
+                break
         return
 
     # Loop mode: show answer, then ask for next WITHOUT clearing the screen.
