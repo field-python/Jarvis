@@ -62,20 +62,17 @@ def calc_payout(result, bet):
             return bet * pay2, f"2× {sym}  {YL}×{pay2}{R}"
     return 0, f"{RD}No match{R}"
 
-def animate_spin():
-    for _ in range(8):
-        r = [random.choice(SYM_LIST) for _ in range(3)]
-        print(f"\r  ┃ {r[0]}  {r[1]}  {r[2]} ┃", end="", flush=True)
-        time.sleep(0.07)
-
-def draw(result=None, msg="", chips=0, bet=0, spinning=False):
+def draw(result=None, msg="", chips=0, bet=0, reel=None):
     os.system("clear")
     print(f"{B}{CY}{HR}{R}")
     print(f"{B}{CY}  Jarvis  🎰  Slots{R}  {DIM}Chips: {chips_bar(chips)}{R}")
     print(f"{B}{CY}{HR}{R}\n")
 
+    # Reel — always at top
     print(f"  {DIM}┏━━━━━━━━━━━━━━━┓{R}")
-    if result and not spinning:
+    if reel:
+        print(f"  {B}┃  {reel[0]}  {reel[1]}  {reel[2]}  ┃{R}")
+    elif result:
         print(f"  {B}┃  {result[0]}  {result[1]}  {result[2]}  ┃{R}")
     else:
         print(f"  ┃ {DIM}?   ?   ?{R}  ┃")
@@ -93,6 +90,13 @@ def draw(result=None, msg="", chips=0, bet=0, spinning=False):
 
     print(f"  Bet: {B}${bet}{R}  {DIM}[↑↓] change{R}")
     print(f"  {YL}[Space/Enter]{R} Spin   {YL}[Q]{R} Quit\n")
+
+
+def animate_spin(chips, bet):
+    for _ in range(10):
+        reel = [random.choice(SYM_LIST) for _ in range(3)]
+        draw(reel=reel, chips=chips, bet=bet)
+        time.sleep(0.07)
 
 def main():
     chips = START_CHIPS
@@ -123,8 +127,7 @@ def main():
                 bet = chips
 
             chips -= bet
-            draw(None, "", chips, bet, spinning=True)
-            animate_spin()
+            animate_spin(chips, bet)
 
             result = spin()
             payout, msg_txt = calc_payout(result, bet)
