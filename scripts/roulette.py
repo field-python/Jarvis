@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""roulette.py — Roulette with multiple bet types and chip system"""
-import os, sys, random, time, tty, termios, select
+"""roulette.py — Roulette with full table layout and arrow-key controls"""
+import os, sys, random, time, tty, termios, select, readline
 
 CY  = "\033[96m"
 GR  = "\033[92m"
 YL  = "\033[93m"
 RD  = "\033[91m"
+RDB = "\033[41m"   # red background
+BLB = "\033[40m"   # black background
 B   = "\033[1m"
 DIM = "\033[2m"
 R   = "\033[0m"
+INV = "\033[7m"    # inverse for selection
 
-HR          = "━" * 52
+HR          = "━" * 54
 START_CHIPS = 500
 
 WHEEL = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,
@@ -19,16 +22,16 @@ WHEEL = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,
 REDS = {1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36}
 
 BET_TYPES = [
-    ("Red",       "Red numbers",        2),
-    ("Black",     "Black numbers",      2),
-    ("Odd",       "Odd numbers",        2),
-    ("Even",      "Even numbers 1-36",  2),
-    ("Low",       "Numbers 1-18",       2),
-    ("High",      "Numbers 19-36",      2),
-    ("1st Dozen", "Numbers 1-12",       3),
-    ("2nd Dozen", "Numbers 13-24",      3),
-    ("3rd Dozen", "Numbers 25-36",      3),
-    ("Single",    "Pick one number",   36),
+    ("Red",          "All red numbers",     2),
+    ("Black",        "All black numbers",   2),
+    ("Odd",          "All odd numbers",     2),
+    ("Even",         "All even numbers",    2),
+    ("Low  (1-18)",  "Numbers 1 through 18",2),
+    ("High (19-36)", "Numbers 19 through 36",2),
+    ("1st Dozen",    "Numbers 1-12",        3),
+    ("2nd Dozen",    "Numbers 13-24",       3),
+    ("3rd Dozen",    "Numbers 25-36",       3),
+    ("Single Number","Choose any number",  36),
 ]
 
 def getch():
@@ -49,139 +52,234 @@ def getch():
 
 def chips_bar(chips):
     pct    = min(chips / START_CHIPS, 2.0) / 2
-    filled = round(pct * 18)
+    filled = round(pct * 16)
     color  = GR if chips >= START_CHIPS else (YL if chips >= 100 else RD)
-    return f"{color}{'█'*filled}{DIM}{'░'*(18-filled)}{R}  ${chips}"
+    return f"{color}{'█'*filled}{DIM}{'░'*(16-filled)}{R} ${chips}"
 
-def num_color(n):
-    if n == 0: return f"{GR}{B}0{R}"
-    return f"{RD}{B}{n}{R}" if n in REDS else f"{B}{n}{R}"
+def num_str(n):
+    if n == 0:      return f"{GR}{B} 0 {R}"
+    if n in REDS:   return f"{RDB}{B}{n:>2} {R}"
+    return f"{BLB}{B}{n:>2} {R}"
 
-def spin_animation(result):
-    ball = ["◉","○","●","◎"]
-    for i in range(16):
-        idx = (WHEEL.index(result) + (16-i)) % len(WHEEL)
-        shown = WHEEL[idx]
-        c = RD if shown in REDS else (GR if shown == 0 else DIM)
-        print(f"\r  🎡  {c}{shown:>2}{R}  {ball[i%4]}", end="", flush=True)
-        time.sleep(0.05 + i*0.02)
-    print(f"\r  🎡  {num_color(result):>10}   ", flush=True)
+def wheel_strip(center_idx, width=11):
+    """Return a strip of wheel numbers centered on center_idx."""
+    half = width // 2
+    parts = []
+    for i in range(-half, half+1):
+        idx = (center_idx + i) % len(WHEEL)
+        n   = WHEEL[idx]
+        if i == 0:
+            parts.append(f"{B}[{num_str(n)}{B}]{R}")
+        else:
+            dim_col = RD if n in REDS else (GR if n == 0 else DIM)
+            parts.append(f"{dim_col}{n:>2}{R}")
+    return "  ".join(parts)
 
-def check_win(bet_type, single_num, result):
-    if bet_type == "Red":      return result in REDS
-    if bet_type == "Black":    return result != 0 and result not in REDS
-    if bet_type == "Odd":      return result != 0 and result % 2 == 1
-    if bet_type == "Even":     return result != 0 and result % 2 == 0
-    if bet_type == "Low":      return 1 <= result <= 18
-    if bet_type == "High":     return 19 <= result <= 36
-    if bet_type == "1st Dozen":return 1 <= result <= 12
-    if bet_type == "2nd Dozen":return 13 <= result <= 24
-    if bet_type == "3rd Dozen":return 25 <= result <= 36
-    if bet_type == "Single":   return result == single_num
-    return False
-
-def pick_bet(chips):
+def draw_table(sel, bet, chips, msg="", result=None, spinning_idx=None):
     os.system("clear")
+    # Header
     print(f"{B}{CY}{HR}{R}")
-    print(f"{B}{CY}  Jarvis  🎡  Roulette{R}  {DIM}Chips: {chips_bar(chips)}{R}")
+    print(f"{B}{CY}  Jarvis  🎰  Roulette{R}  {DIM}Chips:{R} {chips_bar(chips)}")
     print(f"{B}{CY}{HR}{R}\n")
-    print(f"  {B}Choose your bet:{R}\n")
-    for i, (name, desc, payout) in enumerate(BET_TYPES):
-        print(f"  {YL}[{i+1}]{R}  {name:<12} {DIM}{desc:<22}{R}  pays {GR}{payout}×{R}")
-    print(f"\n  {YL}[Q]{R}  Quit\n")
-    print(f"  > ", end="", flush=True)
 
-    while True:
-        ch = getch()
-        if ch in ("q","\x1b","\x03"): return None, None, None
-        if ch.isdigit() and 1 <= int(ch) <= len(BET_TYPES):
-            idx = int(ch) - 1
-            break
-    bet_type, _, payout = BET_TYPES[idx]
+    # Wheel display
+    if spinning_idx is not None:
+        strip = wheel_strip(spinning_idx)
+        print(f"  {DIM}◄{R} {strip} {DIM}►{R}")
+        print(f"  {DIM}{'─'*52}{R}\n")
+    elif result is not None:
+        n = result
+        color = RD if n in REDS else (GR if n == 0 else B)
+        suit  = "RED" if n in REDS else ("GREEN" if n == 0 else "BLACK")
+        print(f"  {DIM}Result:{R}  {color}{B}  {n}  {R}  {DIM}({suit}){R}")
+        print(f"  {DIM}{'─'*52}{R}\n")
+    else:
+        print(f"  {DIM}Place your bet then press Enter to spin{R}")
+        print(f"  {DIM}{'─'*52}{R}\n")
 
-    single_num = None
-    if bet_type == "Single":
-        os.system("clear")
-        print(f"{B}{CY}{HR}{R}")
-        print(f"{B}{CY}  Roulette  |  Pick a number (0-36){R}")
-        print(f"{B}{CY}{HR}{R}\n")
-        print(f"  {DIM}Red: {sorted(REDS)}{R}\n")
-        print(f"  Number: ", end="", flush=True)
-        import readline
-        try:
-            n = int(input())
-            single_num = max(0, min(36, n))
-        except:
-            single_num = 7
+    # Bet type menu
+    print(f"  {'BET TYPE':<24} {'PAYS':>5}   {'DESCRIPTION'}")
+    print(f"  {'─'*52}")
+    for i, (name, desc, pays) in enumerate(BET_TYPES):
+        pay_str = f"{GR}{pays}×{R}"
+        if i == sel:
+            print(f"  {YL}▶{R} {B}{name:<22}{R} {pay_str:>12}   {DIM}{desc}{R}")
+        else:
+            print(f"  {DIM}  {name:<22}  {pays}×          {desc}{R}")
+    print()
 
     # Bet amount
+    bet_color = YL if bet <= 50 else (RD if bet >= 200 else GR)
+    print(f"  Bet: {bet_color}{B}${bet}{R}  {DIM}[←→] adjust{R}")
+    print()
+
+    # Message / controls
+    if msg:
+        print(f"  {msg}\n")
+    else:
+        print(f"  {DIM}[↑↓] select bet type   [←→] adjust bet amount{R}")
+        print(f"  {YL}[Enter]{R} Spin   {YL}[Q]{R} Quit\n")
+
+def check_win(bet_type, single_num, result):
+    n = bet_type
+    if n == "Red":           return result in REDS
+    if n == "Black":         return result != 0 and result not in REDS
+    if n == "Odd":           return result != 0 and result % 2 == 1
+    if n == "Even":          return result != 0 and result % 2 == 0
+    if n == "Low  (1-18)":   return 1 <= result <= 18
+    if n == "High (19-36)":  return 19 <= result <= 36
+    if n == "1st Dozen":     return 1 <= result <= 12
+    if n == "2nd Dozen":     return 13 <= result <= 24
+    if n == "3rd Dozen":     return 25 <= result <= 36
+    if n == "Single Number": return result == single_num
+    return False
+
+def pick_single_number():
     os.system("clear")
     print(f"{B}{CY}{HR}{R}")
-    print(f"{B}{CY}  Roulette  |  {bet_type}{R}  {DIM}(pays {payout}×){R}")
+    print(f"{B}{CY}  Roulette  |  Pick a Single Number (0-36){R}")
     print(f"{B}{CY}{HR}{R}\n")
-    print(f"  Chips: {chips_bar(chips)}\n")
-    print(f"  {YL}[1-9]{R} × $10   {YL}[Enter]{R} = $10   {YL}[A]{R} = all-in\n")
-    print(f"  Bet: ", end="", flush=True)
-    ch = getch()
-    if ch in ("q","\x1b","\x03"): return None, None, None
-    if ch.lower() == "a":
-        bet = chips
-    elif ch.isdigit() and ch != "0":
-        bet = min(int(ch)*10, chips)
-    else:
-        bet = min(10, chips)
-    bet = max(5, bet)
 
-    return bet_type, single_num, bet
+    # Show the numbers in a grid
+    print(f"  {GR}{B} 0 {R}  (green)\n")
+    for row in range(3, 0, -1):
+        line = "  "
+        for col in range(1, 13):
+            n = (col - 1) * 3 + row
+            if n <= 36:
+                c = RD if n in REDS else B
+                line += f"{c}{n:>2}{R} "
+        print(line)
+    print()
+
+    sys.stdout.write("  Number (0-36): ")
+    sys.stdout.flush()
+    # restore terminal for normal input
+    fd = sys.stdin.fileno()
+    try:
+        old = termios.tcgetattr(fd)
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except Exception:
+        pass
+    try:
+        n = int(input())
+        return max(0, min(36, n))
+    except Exception:
+        return 7
+
+def spin_animation(result, chips, sel, bet):
+    """Animate the wheel spinning using overwrite-in-place."""
+    target_idx = WHEEL.index(result)
+    total_steps = 30
+    start_idx   = random.randint(0, len(WHEEL)-1)
+
+    for step in range(total_steps):
+        # Ease in: slow start, slow end
+        t = step / total_steps
+        speed = max(1, int(6 * (1 - (2*t-1)**2) + 1))  # parabolic ease
+        idx = (start_idx + step * 2) % len(WHEEL)
+
+        # Last few steps: lock toward target
+        if step >= total_steps - 8:
+            remaining = total_steps - step
+            idx = (target_idx - remaining) % len(WHEEL)
+
+        sys.stdout.write("\033[H")
+        sys.stdout.flush()
+
+        # Reprint header + wheel
+        print(f"{B}{CY}{HR}{R}")
+        print(f"{B}{CY}  Jarvis  🎰  Roulette{R}  {DIM}Chips:{R} {chips_bar(chips)}")
+        print(f"{B}{CY}{HR}{R}\n")
+        strip = wheel_strip(idx)
+        print(f"  {DIM}◄{R} {strip} {DIM}►{R}")
+        print(f"  {DIM}{'─'*52}{R}\n")
+
+        # Static bet list below (no reprint — just pad)
+        delay = 0.03 + (step / total_steps) * 0.12
+        time.sleep(delay)
 
 def main():
-    chips = START_CHIPS
-    spins = 0
+    chips    = START_CHIPS
+    spins    = 0
+    sel      = 0      # selected bet type index
+    bet      = 10
+    single   = None
+
+    draw_table(sel, bet, chips)
 
     while chips >= 5:
-        bet_type, single_num, bet = pick_bet(chips)
-        if bet_type is None:
+        ch = getch()
+
+        if ch in ("q", "\x1b", "\x03"):
             break
 
-        chips -= bet
-        result = random.choice(WHEEL)
-        spins += 1
+        elif ch == "\x1b[A":  # up
+            sel = (sel - 1) % len(BET_TYPES)
+            draw_table(sel, bet, chips)
 
-        os.system("clear")
-        print(f"{B}{CY}{HR}{R}")
-        print(f"{B}{CY}  Jarvis  🎡  Roulette{R}  {DIM}Bet: {bet_type} ${bet}{R}")
-        print(f"{B}{CY}{HR}{R}\n")
-        print(f"  Spinning...\n")
-        spin_animation(result)
+        elif ch == "\x1b[B":  # down
+            sel = (sel + 1) % len(BET_TYPES)
+            draw_table(sel, bet, chips)
 
-        won = check_win(bet_type, single_num, result)
-        payout = next(p for n,_,p in BET_TYPES if n==bet_type)
+        elif ch == "\x1b[C":  # right — increase bet
+            bet = min(bet + 10, chips, 500)
+            draw_table(sel, bet, chips)
 
-        if won:
-            winnings = bet * payout
-            chips += winnings
-            msg = f"\n  {GR}{B}✓ Win! +${winnings}{R}  {DIM}({bet_type}  |  rolled {result}){R}"
-        else:
-            msg = f"\n  {RD}✗ Lose  -${bet}{R}  {DIM}({bet_type}  |  rolled {result}){R}"
+        elif ch == "\x1b[D":  # left — decrease bet
+            bet = max(5, bet - 10)
+            draw_table(sel, bet, chips)
 
-        print(msg)
-        print(f"\n  Chips: {chips_bar(chips)}")
-        print(f"\n  {DIM}Any key to continue  |  Q to quit{R}", end="", flush=True)
-        if getch().lower() in ("q","\x1b","\x03"):
-            break
+        elif ch in ("\r", "\n", " "):
+            bet_type = BET_TYPES[sel][0]
+            payout   = BET_TYPES[sel][2]
 
+            # Pick single number if needed
+            if bet_type == "Single Number":
+                single = pick_single_number()
+
+            actual_bet = min(bet, chips)
+            chips -= actual_bet
+            result = random.choice(WHEEL)
+            spins += 1
+
+            # Draw initial frame then animate
+            os.system("clear")
+            draw_table(sel, actual_bet, chips)
+            spin_animation(result, chips, sel, actual_bet)
+
+            # Show result
+            won = check_win(bet_type, single, result)
+            if won:
+                winnings = actual_bet * payout
+                chips   += winnings
+                n_str    = f"{RD if result in REDS else (GR if result==0 else B)}{B}{result}{R}"
+                msg = f"{GR}{B}✓  WIN! +${winnings}{R}  {DIM}Rolled {n_str}  |  {bet_type}  pays {payout}×{R}"
+            else:
+                n_str = f"{RD if result in REDS else (GR if result==0 else B)}{B}{result}{R}"
+                msg = f"{RD}✗  Lose  −${actual_bet}{R}  {DIM}Rolled {n_str}  |  {bet_type}{R}"
+
+            draw_table(sel, actual_bet, chips, msg=msg, result=result)
+            print(f"  {DIM}Any key for next spin  |  Q to quit{R}", end="", flush=True)
+
+            if getch().lower() in ("q", "\x1b", "\x03"):
+                break
+
+            draw_table(sel, bet, chips)
+
+    # Summary
     os.system("clear")
     print(f"{B}{CY}{HR}{R}")
     print(f"{B}  Roulette  |  Game Over{R}")
     print(f"{B}{CY}{HR}{R}\n")
     delta = chips - START_CHIPS
-    sign = "+" if delta >= 0 else ""
+    sign  = "+" if delta >= 0 else ""
     color = GR if delta >= 0 else RD
     print(f"  Spins:       {spins}")
     print(f"  Final chips: {chips_bar(chips)}")
     print(f"  Net result:  {color}{B}{sign}${delta}{R}\n")
     try:
-        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        import sys as _s; _s.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
         from scores import record
         if delta > 0 and record("roulette", "Best net win ($)", delta):
             print(f"  {GR}{B}🏆 New high score!{R}\n")
