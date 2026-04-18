@@ -540,6 +540,10 @@ def main():
         run_py("classics.py", *rest)
     elif cmd in ("blackjack", "bj", "21"):
         run_py("blackjack.py")
+    elif cmd in ("slots", "slot", "slot-machine"):
+        run_py("slots.py")
+    elif cmd in ("higherlower", "higher-lower", "higher", "hilo"):
+        run_py("higherlower.py")
     elif cmd in ("mathquiz", "math", "arithmetic"):
         run_py("mathquiz.py")
     elif cmd in ("wordchain", "word-chain", "chain"):

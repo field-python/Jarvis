@@ -201,10 +201,12 @@ SUBMENUS = {
         ("Edit / proofread",         ["edit"],        True,  "Text to improve: "),
     ],
     "games": [
+        ("Blackjack",            ["blackjack"],     False, ""),
+        ("Slots",                ["slots"],         False, ""),
+        ("Higher or Lower",      ["higherlower"],   False, ""),
         ("Trivia",               ["trivia"],        False, ""),
         ("Hangman",              ["hangman"],       False, ""),
         ("Word Scramble",        ["word-scramble"], False, ""),
-        ("Blackjack",            ["blackjack"],     False, ""),
         ("Math Quiz",            ["mathquiz"],      False, ""),
         ("Word Chain",           ["wordchain"],     False, ""),
     ],
@@ -475,7 +477,7 @@ ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search"
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.
-SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks"}
+SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower"}
 
 
 def _loop_prompt(prompt):
