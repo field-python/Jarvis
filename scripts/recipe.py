@@ -110,20 +110,31 @@ def browse_recipes(category_filter=None):
 
     selected = 0
     view_top = 0
-    visible  = 10  # will be recalculated on first draw
 
-    def draw():
-        nonlocal visible
+    import termios as _termios
+
+    def get_visible():
         try:
             rows, _ = os.get_terminal_size()
         except OSError:
             rows = 24
-        visible = max(4, rows - 10)
-        os.system("clear")
-        buf  = f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
+        return max(4, rows - 8)
+
+    def redraw():
+        visible = get_visible()
+        # Clamp view_top so selected is always in view
+        if selected < view_top:
+            view_top_new = selected
+        elif selected >= view_top + visible:
+            view_top_new = selected - visible + 1
+        else:
+            view_top_new = view_top
+        # Direct ANSI clear — same buffer as content, no subprocess timing gap
+        buf  = "\033[2J\033[H"
+        buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
         buf += f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}\n"
         buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n\n"
-        for i in range(view_top, min(view_top + visible, len(items))):
+        for i in range(view_top_new, min(view_top_new + visible, len(items))):
             title, cat_label, _ = items[i]
             if i == selected:
                 buf += f"  {BOLD}{GREEN}▶  {title:<40}{RESET}  {GREEN}{DIM}[{cat_label}]{RESET}\n"
@@ -131,48 +142,41 @@ def browse_recipes(category_filter=None):
                 buf += f"  {DIM}   {title:<40}  [{cat_label}]{RESET}\n"
         buf += "\n"
         if len(items) > visible:
-            buf += f"  {DIM}({view_top+1}-{min(view_top+visible, len(items))} of {len(items)})  "
+            buf += f"  {DIM}({view_top_new+1}-{min(view_top_new+visible,len(items))} of {len(items)})  "
         else:
             buf += "  "
-        buf += f"↑↓ select  |  Enter view  |  / search  |  Q/ESC exit{RESET}\n"
+        buf += f"↑↓ navigate  |  Enter view  |  / search  |  Q/ESC exit{RESET}\n"
         sys.stdout.write(buf)
         sys.stdout.flush()
+        return view_top_new
 
-    # Flush buffered keypresses (e.g. Enter from menu) before starting
-    import termios as _termios
+    # Flush buffered keypresses (e.g. Enter from menu)
     _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
-
-    draw()
+    view_top = redraw()
 
     while True:
         key = getch()
 
         if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
-            os.system("clear")
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.flush()
             return
 
         elif key == "\x1b[A":   # up
             selected = (selected - 1) % len(items)
-            if selected < view_top:
-                view_top = selected
-            elif selected == len(items) - 1:   # wrapped to bottom
-                view_top = max(0, len(items) - visible)
-            draw()
+            view_top = redraw()
 
         elif key == "\x1b[B":   # down
             selected = (selected + 1) % len(items)
-            if selected >= view_top + visible:
-                view_top = selected - visible + 1
-            elif selected == 0:                # wrapped to top
-                view_top = 0
-            draw()
+            view_top = redraw()
 
         elif key in ("/", "s", "S"):
-            os.system("clear")
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.flush()
             try:
                 query = input("  Search recipes: ").strip()
             except (EOFError, KeyboardInterrupt):
-                draw()
+                view_top = redraw()
                 continue
             if query:
                 results = []
@@ -188,7 +192,7 @@ def browse_recipes(category_filter=None):
                 else:
                     print(f"  No results for '{query}'. Press any key...")
                     getch()
-            draw()
+            view_top = redraw()
 
         elif key in ("\r", "\n"):
             display_recipe(items[selected][2])
@@ -199,7 +203,7 @@ def browse_recipes(category_filter=None):
             except KeyboardInterrupt:
                 return
             _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
-            draw()
+            view_top = redraw()
 
 
 def list_recipes(category_filter=None):
