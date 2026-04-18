@@ -196,9 +196,17 @@ def main():
     tmp.write(prompt)
     tmp.close()
 
+    try:
+        term_cols = os.get_terminal_size().columns
+    except OSError:
+        term_cols = 80
+    # Tell generate.py the effective width minus the 2-space indent we add
+    gen_env = os.environ.copy()
+    gen_env["COLUMNS"] = str(max(40, term_cols - 4))
+
     result = subprocess.run(
         [sys.executable, generate_script, model, host, tmp.name],
-        capture_output=True, text=True
+        capture_output=True, text=True, env=gen_env
     )
     os.unlink(tmp.name)
     speech_text = result.stdout.strip()

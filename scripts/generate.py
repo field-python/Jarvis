@@ -23,7 +23,7 @@ def stream_output(chunks):
         try:
             cols = os.get_terminal_size(1).columns - 1
         except Exception:
-            cols = 79
+            cols = int(os.environ.get("COLUMNS", "80")) - 1
 
     in_think = False
     pending  = ""   # raw chunk accumulator for think-stripping
