@@ -130,9 +130,9 @@ def draw(board, cursor, msg="", scores=None):
     print(f"{B}{CY}  Jarvis  ⬤  Connect Four{R}{DIM}{s}{R}")
     print(f"{B}{CY}{HR}{R}\n")
 
-    # Column indicator
-    ind = "  " + "".join(f" {YL}▼{R} " if i==cursor else "   " for i in range(COLS))
-    print(ind)
+    # Column indicator — same │ structure as board so arrow stays aligned
+    ind_cells = "│".join(f" {YL}▼{R} " if i==cursor else "   " for i in range(COLS))
+    print(f"  │{ind_cells}│")
 
     # Board
     print(f"  ┌" + "───┬"*(COLS-1) + "───┐")
@@ -142,7 +142,8 @@ def draw(board, cursor, msg="", scores=None):
         if r < ROWS-1:
             print(f"  ├" + "───┼"*(COLS-1) + "───┤")
     print(f"  └" + "───┴"*(COLS-1) + "───┘")
-    print("  " + "".join(f" {DIM}{i+1}{R}  " for i in range(COLS)))
+    num_cells = "│".join(f" {DIM}{i+1}{R} " for i in range(COLS))
+    print(f"  │{num_cells}│")
 
     print(f"\n  {RD}●{R} You   {YL}●{R} Jarvis\n")
     if msg:
