@@ -32,7 +32,6 @@ SUBMENUS = {
         ("🤖  Ask Jarvis",        ["__submenu__", "ask"],    False, ""),
         ("💬  Chat mode",         ["chat"],                  False, ""),
         ("🎙️  Voice mode",        ["voice"],                 False, ""),
-        ("🎯  Skill of the day",  ["skill"],                 False, ""),
     ],
     "tools_main": [
         ("💡  Brainstorm",        ["__submenu__", "tools"],  False, ""),
@@ -47,6 +46,7 @@ SUBMENUS = {
     ],
     "life": [
         ("🍳  Recipes",           ["__submenu__", "recipes"],  False, ""),
+        ("🎯  Skill of the day",  ["skill"],                   False, ""),
         ("⏱️  Set a timer",       ["timer"],                   True,  "Duration (e.g. 1h, 10m, 30s): "),
         ("🔔  Reminders",         ["__submenu__", "reminders"],False, ""),
         ("✅  To-do list",        ["__submenu__", "todo"],     False, ""),
