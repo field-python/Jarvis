@@ -140,7 +140,7 @@ def browse_recipes(category_filter=None):
         visible = draw(selected, view_top)
         key = getch()
 
-        if key in ("q", "Q", "\x03") or (key.startswith("\x1b") and len(key) == 1):
+        if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
             sys.stdout.write("\033[2J\033[H")
             sys.stdout.flush()
             return

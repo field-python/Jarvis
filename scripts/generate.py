@@ -16,9 +16,55 @@ use_think = os.environ.get("JARVIS_THINK", "1").lower() not in ("0", "false", "n
 
 
 def stream_output(chunks):
-    """Stream chunks to stdout, stripping <think>...</think> blocks."""
+    """Stream chunks to stdout, stripping <think> blocks, with word wrapping."""
+    import shutil
+    try:
+        cols = shutil.get_terminal_size().columns - 1
+    except Exception:
+        cols = 79
+
     in_think = False
-    pending  = ""
+    pending  = ""   # raw chunk accumulator for think-stripping
+    word     = ""   # current word being built character by character
+    col      = 0    # current terminal column position
+
+    def emit(w, sep):
+        """Emit a word followed by a separator (' ', '\n', or '')."""
+        nonlocal col
+        if sep == "\n":
+            if col + len(w) > cols and col > 0 and w:
+                sys.stdout.write("\n")
+                col = 0
+            sys.stdout.write(w + "\n")
+            sys.stdout.flush()
+            col = 0
+        elif sep == " ":
+            if col + len(w) > cols and col > 0 and w:
+                sys.stdout.write("\n")
+                col = 0
+            sys.stdout.write(w)
+            col += len(w)
+            if col < cols:
+                sys.stdout.write(" ")
+                col += 1
+            sys.stdout.flush()
+        else:  # end of stream
+            if col + len(w) > cols and col > 0 and w:
+                sys.stdout.write("\n")
+                col = 0
+            sys.stdout.write(w)
+            col += len(w)
+            sys.stdout.flush()
+
+    def process_text(text):
+        """Feed text through word-wrap emitter."""
+        nonlocal word
+        for ch in text:
+            if ch in (" ", "\n"):
+                emit(word, ch)
+                word = ""
+            else:
+                word += ch
 
     for chunk in chunks:
         if not chunk:
@@ -36,17 +82,22 @@ def stream_output(chunks):
             else:
                 start = pending.find("<think>")
                 if start == -1:
+                    # safe to emit all but last 7 chars (in case <think> is split)
                     safe = len(pending) - 7
                     if safe > 0:
-                        print(pending[:safe], end="", flush=True)
+                        process_text(pending[:safe])
                         pending = pending[safe:]
                     break
-                print(pending[:start], end="", flush=True)
+                process_text(pending[:start])
                 pending  = pending[start + 7:]
                 in_think = True
 
     if pending and not in_think:
-        print(pending, end="", flush=True)
+        process_text(pending)
+
+    # flush remaining word
+    if word:
+        emit(word, "")
 
     print()
 

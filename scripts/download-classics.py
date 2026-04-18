@@ -74,6 +74,46 @@ BOOKS = [
     # Shakespeare
     ("Hamlet",                            "William Shakespeare",  1603, "Drama",      1524,  "hamlet.md"),
     ("Romeo and Juliet",                  "William Shakespeare",  1597, "Drama",      1513,  "romeo-and-juliet.md"),
+    ("Macbeth",                           "William Shakespeare",  1606, "Drama",      1533,  "macbeth.md"),
+    ("King Lear",                         "William Shakespeare",  1606, "Drama",      1532,  "king-lear.md"),
+    ("A Midsummer Night's Dream",         "William Shakespeare",  1600, "Drama",      1514,  "midsummer-nights-dream.md"),
+    # Tolstoy
+    ("War and Peace",                     "Leo Tolstoy",          1869, "Classic",    2600,  "war-and-peace.md"),
+    ("Anna Karenina",                     "Leo Tolstoy",          1878, "Classic",    1399,  "anna-karenina.md"),
+    ("The Death of Ivan Ilyich",          "Leo Tolstoy",          1886, "Classic",    600,   "death-of-ivan-ilyich.md"),
+    # Dostoevsky
+    ("The Brothers Karamazov",            "Fyodor Dostoevsky",    1880, "Classic",    28054, "brothers-karamazov.md"),
+    ("The Idiot",                         "Fyodor Dostoevsky",    1869, "Classic",    2638,  "the-idiot.md"),
+    # More Dickens
+    ("Oliver Twist",                      "Charles Dickens",      1837, "Classic",    730,   "oliver-twist.md"),
+    ("David Copperfield",                 "Charles Dickens",      1850, "Classic",    766,   "david-copperfield.md"),
+    # More Austen
+    ("Sense and Sensibility",             "Jane Austen",          1811, "Romance",    161,   "sense-and-sensibility.md"),
+    ("Emma",                              "Jane Austen",          1815, "Romance",    158,   "emma.md"),
+    # Victor Hugo
+    ("Les Misérables",                    "Victor Hugo",          1862, "Classic",    135,   "les-miserables.md"),
+    ("The Hunchback of Notre-Dame",       "Victor Hugo",          1831, "Gothic",     2349,  "hunchback-notre-dame.md"),
+    # Cervantes
+    ("Don Quixote",                       "Miguel de Cervantes",  1605, "Classic",    996,   "don-quixote.md"),
+    # Dante
+    ("The Divine Comedy — Inferno",       "Dante Alighieri",      1320, "Epic",       8800,  "divine-comedy-inferno.md"),
+    # More adventure/classics
+    ("The Three Musketeers",              "Alexandre Dumas",      1844, "Adventure",  1257,  "three-musketeers.md"),
+    ("The Swiss Family Robinson",         "Johann Wyss",          1812, "Adventure",  11516, "swiss-family-robinson.md"),
+    ("Gulliver's Travels",                "Jonathan Swift",       1726, "Satire",     829,   "gullivers-travels.md"),
+    ("Candide",                           "Voltaire",             1759, "Satire",     19942, "candide.md"),
+    # American classics
+    ("The Scarlet Letter",                "Nathaniel Hawthorne",  1850, "Classic",    25344, "scarlet-letter.md"),
+    ("Walden",                            "Henry David Thoreau",  1854, "Philosophy", 205,   "walden.md"),
+    ("The Red Badge of Courage",          "Stephen Crane",        1895, "War",        73,    "red-badge-of-courage.md"),
+    # Horror / Weird fiction
+    ("At the Mountains of Madness",       "H.P. Lovecraft",       1936, "Horror",     70652, "mountains-of-madness.md"),
+    ("The Call of Cthulhu",               "H.P. Lovecraft",       1928, "Horror",     68236, "call-of-cthulhu.md"),
+    # More classics
+    ("Wuthering Heights",                 "Emily Brontë",         1847, "Gothic",     768,   "wuthering-heights.md"),
+    ("Jane Eyre",                         "Charlotte Brontë",     1847, "Romance",    1260,  "jane-eyre.md"),
+    ("The Jungle Book",                   "Rudyard Kipling",      1894, "Adventure",  236,   "jungle-book.md"),
+    ("Kim",                               "Rudyard Kipling",      1901, "Adventure",  2226,  "kim-kipling.md"),
 ]
 
 
