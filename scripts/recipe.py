@@ -74,18 +74,82 @@ def get_category(filepath):
     return "other"
 
 
+def render_recipe(text):
+    """Convert markdown to colored terminal lines."""
+    lines = []
+    for line in text.splitlines():
+        if line.startswith("## "):
+            lines.append(f"\n{BOLD}{CYAN}  {line[3:]}{RESET}")
+            lines.append(f"  {CYAN}{'─' * 36}{RESET}")
+        elif line.startswith("# "):
+            lines.append(f"\n{BOLD}{YELLOW}  {line[2:]}{RESET}")
+        elif line.startswith("### "):
+            lines.append(f"\n{BOLD}  {line[4:]}{RESET}")
+        elif line.strip().startswith("- "):
+            lines.append(f"  {CYAN}•{RESET}  {line.strip()[2:]}")
+        elif line.strip() and line.strip()[0].isdigit() and ". " in line:
+            lines.append(f"  {YELLOW}{line.strip()}{RESET}")
+        elif line.strip().startswith("**") and line.strip().endswith("**"):
+            lines.append(f"  {BOLD}{line.strip().strip('*')}{RESET}")
+        else:
+            lines.append(f"  {line}" if line.strip() else "")
+    return lines
+
+
 def display_recipe(filepath):
-    text = filepath.read_text(encoding="utf-8")
-    cat  = get_category(filepath)
+    """Paged recipe viewer — starts at top, arrow keys scroll, Q/ESC exits."""
+    try:
+        text = filepath.read_text(encoding="utf-8")
+    except Exception as e:
+        print(f"  Error reading recipe: {e}")
+        getch()
+        return
+
+    cat   = get_category(filepath)
     label = CATEGORIES.get(cat, cat.title())
-    print()
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"  Jarvis Recipe  |  {label}")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print()
-    print(text.strip())
-    print()
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    lines = render_recipe(text)
+
+    offset = 0
+    while True:
+        try:
+            term_rows = os.get_terminal_size().lines - 5
+        except OSError:
+            term_rows = 20
+        page_size = max(8, term_rows)
+        total     = len(lines)
+
+        os.system("clear")
+        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print(f"{BOLD}  Jarvis Recipe  |  {label}{RESET}")
+        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+
+        end = min(offset + page_size, total)
+        for line in lines[offset:end]:
+            print(line)
+
+        print()
+        pct        = int((end / total) * 100) if total > 0 else 100
+        bar_filled = int(pct / 5)
+        bar        = f"{YELLOW}{'█' * bar_filled}{'░' * (20 - bar_filled)}{RESET}"
+        at_end     = end >= total
+
+        if at_end:
+            print(f"  {bar}  {DIM}{pct}%  ── END ──  Q/ESC back  ↑ up{RESET}")
+        else:
+            print(f"  {bar}  {DIM}{pct}%  Space/↓ next  ↑ up  Q/ESC back{RESET}")
+
+        key = getch()
+        if key in ("q", "Q", "\x1b"):
+            return
+        elif key in (" ", "\x1b[B", "\r", "\n"):
+            if not at_end:
+                offset = min(offset + page_size, total - page_size)
+        elif key == "\x1b[A":
+            offset = max(0, offset - page_size)
+        elif key in ("g", "G"):
+            offset = 0
+        elif key in ("e", "E"):
+            offset = max(0, total - page_size)
 
 
 def browse_recipes(category_filter=None):
@@ -195,12 +259,6 @@ def browse_recipes(category_filter=None):
 
         elif key in ("\r", "\n"):
             display_recipe(items[selected][2])
-            print()
-            print(f"  {DIM}Press any key to return to list...{RESET}", end="", flush=True)
-            try:
-                getch()
-            except KeyboardInterrupt:
-                return
             _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
             visible = draw_list(selected, view_top)
 
