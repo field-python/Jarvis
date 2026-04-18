@@ -36,18 +36,22 @@ SUBMENUS = {
         ("🎭  Set personality",   ["personality"],           False, ""),
     ],
     "tools_main": [
-        ("💡  Brainstorm",        ["__submenu__", "tools"],  False, ""),
+        ("💡  Brainstorm",        ["brainstorm"],            True,  "Topic or problem: "),
         ("💻  Code help",         ["code"],                  True,  "Describe what to build: "),
         ("📚  Learn to code",     ["learn"],                 True,  "Topic (e.g. Python for loops): "),
         ("🗣️  Language Hub",      ["language"],              False, ""),
-        ("🧮  Calculator",        ["calc"],                  True,  "Expression (e.g. 180 lbs to kg): "),
-        ("✏️  Edit / proofread",  ["edit"],                  True,  "Text to improve: "),
         ("🌐  Translate",         ["translate"],             True,  "Text (e.g. hello to Spanish): "),
+        ("🧮  Calculator",        ["calc"],                  True,  "Expression (e.g. 180 lbs to kg): "),
         ("🩺  Symptom checker",   ["symptom"],               False, ""),
         ("⚖️  Interactive Law",   ["legal"],                 True,  "Legal scenario or question: "),
     ],
     "life": [
         ("🍳  Recipes",           ["__submenu__", "recipes"],  False, ""),
+        ("✍️  Speech & Writing",  ["__submenu__", "writing"],  False, ""),
+        ("⚖️  Pros & Cons",       ["pros"],                    True,  "Decision or topic: "),
+        ("🧒  Explain simply",    ["eli5"],                    True,  "Topic: "),
+        ("🔀  Compare two things",["compare"],                 True,  "X vs Y: "),
+        ("🗺️  Action plan",       ["plan"],                    True,  "Goal or project: "),
         ("⏱️  Set a timer",       ["timer"],                   True,  "Duration (e.g. 1h, 10m, 30s): "),
         ("🔔  Reminders",         ["__submenu__", "reminders"],False, ""),
         ("✅  To-do list",        ["__submenu__", "todo"],     False, ""),
@@ -63,7 +67,6 @@ SUBMENUS = {
     "library": [
         ("📖  Holy Books",        ["__submenu__", "holy_books"], False, ""),
         ("🏛️  Classic Library",   ["__submenu__", "classics"],   False, ""),
-        ("✍️  Speech Writer",      ["speech"],                    False, ""),
         ("📜  Law Library",       ["legal", "browse"],           False, ""),
         ("🧪  Erowid Reference",  ["erowid"],                    False, ""),
     ],
@@ -212,13 +215,8 @@ SUBMENUS = {
         ("🗑️  Delete a reminder",    ["remind", "delete"],      True,  "Reminder #: "),
         ("▶️  Start reminder daemon", ["remind-start"],         False, ""),
     ],
-    "tools": [
-        ("💡  Brainstorm ideas",     ["brainstorm"],  True,  "Topic or problem: "),
-        ("⚖️  Pros & Cons",          ["pros"],        True,  "Decision or topic: "),
-        ("🧒  Explain simply (ELI5)", ["eli5"],       True,  "Topic: "),
-        ("🔀  Compare two things",   ["compare"],     True,  "X vs Y: "),
-        ("🗺️  Action plan",          ["plan"],        True,  "Goal or project: "),
-        ("🌐  Translate",            ["translate"],   True,  "Text (e.g. hello to Spanish): "),
+    "writing": [
+        ("✍️  Speech writer",        ["speech"],      False, ""),
         ("✏️  Edit / proofread",     ["edit"],        True,  "Text to improve: "),
     ],
     "games": [
@@ -503,7 +501,7 @@ ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search"
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.
-SELF_MANAGED = {"chat", "voice", "convo", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather", "speech", "personality"}
+SELF_MANAGED = {"chat", "voice", "convo", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather", "speech", "personality", "writing"}
 
 
 def _loop_prompt(prompt):
