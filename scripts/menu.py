@@ -32,6 +32,8 @@ SUBMENUS = {
         ("🤖  Ask Jarvis",        ["__submenu__", "ask"],    False, ""),
         ("💬  Chat mode",         ["chat"],                  False, ""),
         ("🎙️  Voice mode",        ["voice"],                 False, ""),
+        ("🗣️  Convo mode",        ["convo"],                 False, ""),
+        ("🎭  Set personality",   ["personality"],           False, ""),
     ],
     "tools_main": [
         ("💡  Brainstorm",        ["__submenu__", "tools"],  False, ""),
@@ -501,7 +503,7 @@ ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search"
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.
-SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather", "speech"}
+SELF_MANAGED = {"chat", "voice", "convo", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather", "speech", "personality"}
 
 
 def _loop_prompt(prompt):
