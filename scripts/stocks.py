@@ -215,6 +215,8 @@ def interactive_mode(symbols, period="1mo"):
                             period_idx = (period_idx - 1) % len(PERIODS)
                         elif ch3 == "B":
                             period_idx = (period_idx + 1) % len(PERIODS)
+                else:
+                    break  # bare ESC = quit
             elif ch.lower() == "q":
                 break
             elif ch.lower() == "w":
