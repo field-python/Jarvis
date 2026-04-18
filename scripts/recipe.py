@@ -406,6 +406,12 @@ def suggest_recipe(ingredients):
     os.unlink(tmp.name)
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"  {DIM}Press any key to continue...{RESET}", end="", flush=True)
+    try:
+        getch()
+    except KeyboardInterrupt:
+        pass
+    print()
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
