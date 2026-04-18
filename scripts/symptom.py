@@ -46,10 +46,7 @@ def input_with_esc(prompt_str):
                 return "".join(buf)
             elif ch in ("\x7f", "\x08"):
                 if not buf:
-                    # backspace on empty input = ESC (exit)
-                    sys.stdout.write("\n")
-                    sys.stdout.flush()
-                    return None
+                    continue  # nothing to delete, do nothing
                 if buf:
                     buf.pop()
                     try:
