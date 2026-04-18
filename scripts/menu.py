@@ -20,6 +20,7 @@ MENU = [
     ("📰  Info",        ["__submenu__", "info"],     False, ""),
     ("📚  Library",     ["__submenu__", "library"],  False, ""),
     ("🎮  Games",       ["__submenu__", "games"],    False, ""),
+    ("💡  Brainstorm",  ["brainstorm"],              True,  "What do you want to brainstorm: "),
     ("⚙️  System",      ["__submenu__", "system"],   False, ""),
 ]
 
