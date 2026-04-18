@@ -544,6 +544,14 @@ def main():
         run_py("slots.py")
     elif cmd in ("higherlower", "higher-lower", "higher", "hilo"):
         run_py("higherlower.py")
+    elif cmd in ("roulette", "roul"):
+        run_py("roulette.py")
+    elif cmd in ("connectfour", "connect-four", "connect4", "c4"):
+        run_py("connectfour.py")
+    elif cmd in ("yahtzee", "dice"):
+        run_py("yahtzee.py")
+    elif cmd in ("poker", "holdem", "texas"):
+        run_py("poker.py")
     elif cmd in ("mathquiz", "math", "arithmetic"):
         run_py("mathquiz.py")
     elif cmd in ("wordchain", "word-chain", "chain"):
