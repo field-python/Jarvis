@@ -111,122 +111,98 @@ def browse_recipes(category_filter=None):
     selected = 0
     view_top = 0
 
-    import termios as _termios, select as _select, time as _time
+    import termios as _termios, select as _sel, time as _time
 
-    def get_visible():
+    def draw_list(sel, top):
         try:
-            rows, _ = os.get_terminal_size()
+            rows = os.get_terminal_size().lines
         except OSError:
             rows = 24
-        return max(4, rows - 8)
-
-    def redraw():
-        visible = get_visible()
-        # Keep selected in view
-        if selected < view_top:
-            view_top_new = selected
-        elif selected >= view_top + visible:
-            view_top_new = selected - visible + 1
-        else:
-            view_top_new = view_top
-        # \033[H = cursor to home, \033[J = clear from cursor down
-        # This overwrites content from top without scrolling viewport
-        buf  = "\033[H\033[J"
-        buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
-        buf += f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}\n"
-        buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n\n"
-        for i in range(view_top_new, min(view_top_new + visible, len(items))):
+        visible = max(4, rows - 8)
+        os.system("clear")
+        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print(f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}")
+        print(f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print()
+        for i in range(top, min(top + visible, len(items))):
             title, cat_label, _ = items[i]
-            if i == selected:
-                buf += f"  {BOLD}{GREEN}▶  {title:<40}{RESET}  {GREEN}{DIM}[{cat_label}]{RESET}\n"
+            if i == sel:
+                print(f"  {BOLD}{GREEN}▶  {title:<40}{RESET}  {GREEN}{DIM}[{cat_label}]{RESET}")
             else:
-                buf += f"  {DIM}   {title:<40}  [{cat_label}]{RESET}\n"
-        buf += "\n"
+                print(f"  {DIM}   {title:<40}  [{cat_label}]{RESET}")
+        print()
         if len(items) > visible:
-            buf += f"  {DIM}({view_top_new+1}-{min(view_top_new+visible,len(items))} of {len(items)})  "
+            sys.stdout.write(f"  {DIM}({top+1}-{min(top+visible,len(items))} of {len(items)})  ")
         else:
-            buf += "  "
-        buf += f"↑↓ navigate  |  Enter view  |  / search  |  Q/ESC exit{RESET}\n"
-        sys.stdout.write(buf)
-        sys.stdout.flush()
-        return view_top_new
+            sys.stdout.write("  ")
+        print(f"↑↓ navigate  |  Enter view  |  / search  |  Q/ESC exit{RESET}")
+        return visible
 
-    def flush_input():
-        """Drain any buffered input before reading."""
-        _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
-        _time.sleep(0.05)
-        while _select.select([sys.stdin], [], [], 0)[0]:
+    # Drain buffered keypresses (Enter from menu etc.)
+    _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
+    _time.sleep(0.05)
+    while _sel.select([sys.stdin], [], [], 0)[0]:
+        try:
+            os.read(sys.stdin.fileno(), 64)
+        except Exception:
+            break
+
+    visible = draw_list(selected, view_top)
+
+    while True:
+        key = getch()
+
+        if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
+            os.system("clear")
+            return
+
+        elif key == "\x1b[A":   # up — no wrap
+            if selected > 0:
+                selected -= 1
+                if selected < view_top:
+                    view_top = selected
+            visible = draw_list(selected, view_top)
+
+        elif key == "\x1b[B":   # down — no wrap
+            if selected < len(items) - 1:
+                selected += 1
+                if selected >= view_top + visible:
+                    view_top = selected - visible + 1
+            visible = draw_list(selected, view_top)
+
+        elif key in ("/", "s", "S"):
+            os.system("clear")
             try:
-                os.read(sys.stdin.fileno(), 64)
-            except Exception:
-                break
-
-    # Enter alternate screen so list always starts at top
-    sys.stdout.write("\033[?1049h\033[H\033[J")
-    sys.stdout.flush()
-
-    flush_input()
-    view_top = redraw()
-
-    try:
-        while True:
-            key = getch()
-
-            if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
-                break
-
-            elif key == "\x1b[A":   # up
-                selected = (selected - 1) % len(items)
-                view_top = redraw()
-
-            elif key == "\x1b[B":   # down
-                selected = (selected + 1) % len(items)
-                view_top = redraw()
-
-            elif key in ("/", "s", "S"):
-                sys.stdout.write("\033[H\033[J")
-                sys.stdout.flush()
-                try:
-                    query = input("  Search recipes: ").strip()
-                except (EOFError, KeyboardInterrupt):
-                    view_top = redraw()
-                    continue
-                if query:
-                    results = []
-                    words = query.lower().split()
-                    for title, label, filepath in items:
-                        text = filepath.read_text(encoding="utf-8").lower()
-                        if any(w in text for w in words):
-                            results.append((title, label, filepath))
-                    if results:
-                        items[:] = results
-                        selected = 0
-                        view_top = 0
-                    else:
-                        print(f"  No results for '{query}'. Press any key...")
-                        getch()
-                view_top = redraw()
-
-            elif key in ("\r", "\n"):
-                # Leave alt screen to show recipe in normal terminal
-                sys.stdout.write("\033[?1049l")
-                sys.stdout.flush()
-                display_recipe(items[selected][2])
-                print()
-                print(f"  {DIM}Press any key to return to list...{RESET}", end="", flush=True)
-                try:
+                query = input("  Search recipes: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                visible = draw_list(selected, view_top)
+                continue
+            if query:
+                results = []
+                words = query.lower().split()
+                for title, label, filepath in items:
+                    text = filepath.read_text(encoding="utf-8").lower()
+                    if any(w in text for w in words):
+                        results.append((title, label, filepath))
+                if results:
+                    items[:] = results
+                    selected = 0
+                    view_top = 0
+                else:
+                    print(f"  No results for '{query}'. Press any key...")
                     getch()
-                except KeyboardInterrupt:
-                    return
-                # Re-enter alt screen for browser
-                sys.stdout.write("\033[?1049h\033[H\033[J")
-                sys.stdout.flush()
-                flush_input()
-                view_top = redraw()
-    finally:
-        # Always restore normal screen on exit
-        sys.stdout.write("\033[?1049l")
-        sys.stdout.flush()
+            visible = draw_list(selected, view_top)
+
+        elif key in ("\r", "\n"):
+            display_recipe(items[selected][2])
+            print()
+            print(f"  {DIM}Press any key to return to list...{RESET}", end="", flush=True)
+            try:
+                getch()
+            except KeyboardInterrupt:
+                return
+            _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
+            visible = draw_list(selected, view_top)
 
 
 def list_recipes(category_filter=None):
