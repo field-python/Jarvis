@@ -36,7 +36,9 @@ def getch():
         ch = os.read(fd,1).decode("utf-8","replace")
         if ch == "\x1b":
             r,_,_ = select.select([fd],[],[],0.1)
-            if r: os.read(fd,2)
+            if r:
+                rest = os.read(fd,2).decode("utf-8","replace")
+                return "\x1b" + rest
             return "\x1b"
         return ch
     finally:

@@ -36,7 +36,9 @@ def getch():
         ch = os.read(fd,1).decode("utf-8","replace")
         if ch == "\x1b":
             r,_,_ = select.select([fd],[],[],0.1)
-            if r: os.read(fd,2)
+            if r:
+                rest = os.read(fd,2).decode("utf-8","replace")
+                return "\x1b" + rest
             return "\x1b"
         return ch
     finally:
@@ -170,13 +172,13 @@ def play_round(scores, round_num):
                 # arrow keys already consumed by getch returning string
                 pass
             # Re-read for arrow simulation via raw chars
-            if ch == "k" or ch == "\x1b[a":
+            if ch == "k" or ch == "\x1b[A":
                 cat_cursor = max(0, cat_cursor-1)
                 while scores.get(CATEGORIES[cat_cursor][0]) is not None and cat_cursor > 0:
                     cat_cursor -= 1
                 draw(dice, kept, rolls_left, scores, cat_cursor, phase)
 
-            elif ch == "j" or ch == "\x1b[b":
+            elif ch == "j" or ch == "\x1b[B":
                 cat_cursor = min(len(CATEGORIES)-1, cat_cursor+1)
                 while scores.get(CATEGORIES[cat_cursor][0]) is not None and cat_cursor < len(CATEGORIES)-1:
                     cat_cursor += 1
