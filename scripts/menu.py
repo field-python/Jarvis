@@ -17,7 +17,7 @@ MENU = [
     ("🤖  AI",          ["__submenu__", "ai"],       False, ""),
     ("🔧  Tools",       ["__submenu__", "tools_main"], False, ""),
     ("🏠  Life",        ["__submenu__", "life"],     False, ""),
-    ("📰  Info",        ["__submenu__", "info"],     False, ""),
+    ("📰  Jarvis Today", ["__submenu__", "info"],     False, ""),
     ("📚  Library",     ["__submenu__", "library"],  False, ""),
     ("🎮  Games",       ["__submenu__", "games"],    False, ""),
     ("💡  Brainstorm",  ["brainstorm"],              True,  "What do you want to brainstorm: "),
@@ -46,7 +46,6 @@ SUBMENUS = {
     ],
     "life": [
         ("🍳  Recipes",           ["__submenu__", "recipes"],  False, ""),
-        ("🎯  Skill of the day",  ["skill"],                   False, ""),
         ("⏱️  Set a timer",       ["timer"],                   True,  "Duration (e.g. 1h, 10m, 30s): "),
         ("🔔  Reminders",         ["__submenu__", "reminders"],False, ""),
         ("✅  To-do list",        ["__submenu__", "todo"],     False, ""),
@@ -55,6 +54,7 @@ SUBMENUS = {
     "info": [
         ("🌤️  News & Weather",    ["__submenu__", "news"],    False, ""),
         ("📈  Stock Market",      ["__submenu__", "stocks"],  False, ""),
+        ("🎯  Skill of the day",  ["skill"],                  False, ""),
         ("🌐  Web search",        ["web"],                    True,  "Search: "),
         ("🔍  Search & Find",     ["__submenu__", "search"],  False, ""),
     ],
