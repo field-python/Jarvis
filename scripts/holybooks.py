@@ -280,6 +280,25 @@ def toc_browser(toc, book_name, page_size):
             return max(0, line_idx - 1)
 
 
+def strip_ansi(s):
+    return re.sub(r"\033\[[0-9;]*m", "", s)
+
+
+def find_matches(lines, term):
+    """Return list of line indices (in rendered lines) that contain term."""
+    t = term.lower()
+    return [i for i, l in enumerate(lines) if t in strip_ansi(l).lower()]
+
+
+def highlight_line(line, term):
+    """Wrap matching text in reverse-video highlight."""
+    plain = strip_ansi(line)
+    idx   = plain.lower().find(term.lower())
+    if idx == -1:
+        return line
+    return f"\033[7m{plain}\033[0m"
+
+
 def view_book(book):
     try:
         text = book["path"].read_text(encoding="utf-8")
@@ -295,6 +314,10 @@ def view_book(book):
     offset    = 0
     toc       = build_toc(lines)
 
+    search_term    = ""
+    search_matches = []   # list of line indices with a match
+    search_idx     = 0    # which match we're currently at
+
     while True:
         clear()
         col = trad_color(book["tradition"])
@@ -303,8 +326,11 @@ def view_book(book):
         print(f"{BOLD}{GOLD}{'━' * 72}{RESET}")
 
         end = min(offset + page_size, total)
-        for line in lines[offset:end]:
-            print(line)
+        for i, line in enumerate(lines[offset:end], start=offset):
+            if search_term and i in search_matches:
+                print(highlight_line(line, search_term))
+            else:
+                print(line)
 
         print()
         pct        = int((end / total) * 100) if total > 0 else 100
@@ -313,10 +339,21 @@ def view_book(book):
         at_end     = end >= total
         toc_hint   = f"  {YELLOW}[T]{RESET}{DIM} contents{RESET}" if toc else ""
 
-        if at_end:
-            print(f"  {bar}  {DIM}{pct}%  ── END ──  Q/ESC back  ↑ up{RESET}{toc_hint}")
+        if search_term and search_matches:
+            match_info = f"  {GREEN}🔍 \"{search_term}\"  {search_idx+1}/{len(search_matches)}  n/N next/prev{RESET}"
+        elif search_term:
+            match_info = f"  {DIM}🔍 \"{search_term}\" — no matches{RESET}"
         else:
-            print(f"  {bar}  {DIM}{pct}%  Space/↓ next  ↑ up  Q/ESC back{RESET}{toc_hint}")
+            match_info = ""
+
+        nav = f"  {DIM}/ search  "
+        if at_end:
+            nav += f"Q/ESC back  ↑ up{RESET}"
+        else:
+            nav += f"Space/↓ next  ↑ up  Q/ESC back{RESET}"
+
+        print(f"  {bar}  {DIM}{pct}%{RESET}{toc_hint}")
+        print(f"{nav}{match_info}")
 
         key = getch()
         if key in ("q", "Q", "\x1b"):
@@ -334,6 +371,23 @@ def view_book(book):
             jump = toc_browser(toc, book["name"], page_size)
             if jump is not None:
                 offset = min(jump, max(0, total - page_size))
+        elif key == "/":
+            q = input_with_esc(f"  {GOLD}Search: {RESET}")
+            if q and q.strip():
+                search_term    = q.strip()
+                search_matches = find_matches(lines, search_term)
+                search_idx     = 0
+                if search_matches:
+                    # jump to first match
+                    offset = max(0, min(search_matches[0] - page_size // 3,
+                                        total - page_size))
+        elif key in ("n", "N") and search_matches:
+            if key == "n":
+                search_idx = (search_idx + 1) % len(search_matches)
+            else:
+                search_idx = (search_idx - 1) % len(search_matches)
+            offset = max(0, min(search_matches[search_idx] - page_size // 3,
+                                total - page_size))
 
 
 # ── list browser ──────────────────────────────────────────────────────────────
