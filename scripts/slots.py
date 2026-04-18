@@ -150,6 +150,13 @@ def main():
     color = GR if delta >= 0 else RD
     print(f"  Final chips: {chips_bar(chips)}")
     print(f"  Net result:  {color}{B}{sign}${delta}{R}\n")
+    try:
+        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        from scores import record
+        if record("slots", "Best chip total ($)", chips) or (delta > 0 and record("slots", "Best net win ($)", delta)):
+            print(f"  {GR}{B}🏆 New high score!{R}\n")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     try:

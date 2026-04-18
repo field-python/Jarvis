@@ -287,6 +287,14 @@ def main():
     print(f"  Hands played: {hands}")
     print(f"  Final chips:  {chips_bar(p_chips)}")
     print(f"  Net result:   {color}{B}{sign}${delta}{R}\n")
+    try:
+        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        from scores import record
+        n1 = record("poker", "Best chip total ($)", p_chips)
+        if delta > 0: record("poker", "Best net win ($)", delta)
+        if n1: print(f"  {GR}{B}🏆 New high score!{R}\n")
+    except Exception:
+        pass
     if p_chips < BLIND:
         print(f"  {RD}You went bust!{R}\n")
 

@@ -221,6 +221,13 @@ def main():
     print(f"  {GR}Wins:  {scores['p']}{R}")
     print(f"  {RD}Losses:{scores['l']}{R}")
     print(f"  {YL}Ties:  {scores['t']}{R}\n")
+    try:
+        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        from scores import record
+        if record("connect-four", "Most wins in session", scores["p"]):
+            print(f"  {GR}{B}🏆 New high score!{R}\n")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     try:

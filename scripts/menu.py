@@ -213,6 +213,7 @@ SUBMENUS = {
         ("Word Scramble",        ["word-scramble"], False, ""),
         ("Math Quiz",            ["mathquiz"],      False, ""),
         ("Word Chain",           ["wordchain"],     False, ""),
+        ("🏆 High Scores",       ["scores"],        False, ""),
     ],
     "downloads": [
         ("General knowledge",        ["download-general"],           False, ""),
@@ -481,7 +482,7 @@ ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search"
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.
-SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker"}
+SELF_MANAGED = {"chat", "voice", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather"}
 
 
 def _loop_prompt(prompt):

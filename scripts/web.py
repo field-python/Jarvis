@@ -74,7 +74,7 @@ def _ensure_ssl_cert(config_dir):
 
 try:
     from flask import (Flask, Response, redirect, render_template,
-                       request, session, url_for, jsonify)
+                       request, session, url_for, jsonify, send_from_directory)
 except ImportError:
     print("\n  Flask is not installed.")
     print("  Run setup.sh to install all dependencies, or:")
@@ -191,7 +191,8 @@ def _groq_env(env):
 
 # ── app ───────────────────────────────────────────────────────────────────────
 
-app = Flask(__name__, template_folder=str(BASE / "templates"))
+STATIC = BASE / "static"
+app = Flask(__name__, template_folder=str(BASE / "templates"), static_folder=str(STATIC))
 app.secret_key = _get_or_create_secret()
 app.permanent_session_lifetime = timedelta(days=30)
 

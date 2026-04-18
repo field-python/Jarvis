@@ -268,6 +268,14 @@ def main():
     print(f"  Net result:    {color}{B}{sign}${delta}{R}\n")
     if chips < MIN_BET:
         print(f"  {RD}Busted out!{R}\n")
+    try:
+        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        from scores import record
+        new1 = record("blackjack", "Best chip total ($)", chips)
+        if delta > 0: record("blackjack", "Best net win ($)", delta)
+        if new1: print(f"  {GR}{B}🏆 New high score!{R}\n")
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

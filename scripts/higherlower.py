@@ -157,6 +157,14 @@ def main():
     print(f"{B}{CY}{HR}{R}\n")
     print(f"  Final score:  {B}{score}{R}")
     print(f"  Best streak:  {streak_bar(best_streak)}\n")
+    try:
+        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        from scores import record
+        n1 = record("higher-lower", "Best score", score)
+        n2 = record("higher-lower", "Best streak", best_streak)
+        if n1 or n2: print(f"  {GR}{B}🏆 New high score!{R}\n")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     try:

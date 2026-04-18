@@ -222,6 +222,13 @@ def main():
         print(f"  {name:<18} {GR if v else DIM}{v if v is not None else 0}{R}")
     print(f"\n  Upper total: {upper}  {'(+35 bonus!)' if bonus else '(need 63)'}")
     print(f"  {B}TOTAL: {GR}{total}{R}\n")
+    try:
+        import sys as _sys; _sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+        from scores import record
+        if record("yahtzee", "Best score", total):
+            print(f"  {GR}{B}🏆 New high score!{R}\n")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     try:
