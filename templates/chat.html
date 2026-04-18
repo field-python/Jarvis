@@ -399,7 +399,7 @@
     <div class="dsec">
         <div class="dsec-label">Daily Briefings</div>
         <div class="dsec-grid">
-            <button class="di" data-cmd="weather" data-input="false" onclick="pickCmd(this)">
+            <button class="di" data-input="false" onclick="loadWeather()">
                 <span class="di-icon">🌤</span><span class="di-label">Weather</span>
             </button>
             <button class="di" data-cmd="news" data-input="false" onclick="pickCmd(this)">
@@ -718,6 +718,60 @@ async function streamRun(cmd, input, group, bubble) {
         bubble.classList.remove('streaming');
         bubble.textContent = 'Connection error — is Jarvis running?';
     }
+}
+
+// ── Weather with inline forecast card ─────────────────────────────────────────
+async function loadWeather() {
+    closeDrawer();
+    if (busy) return;
+    busy = true;
+    document.getElementById('sb').disabled = true;
+    const { group, bubble } = addMsg('jarvis', '', false);
+    bubble.classList.add('streaming');
+
+    try {
+        const r = await fetch('/api/weather');
+        const d = await r.json();
+        if (d.error) { bubble.innerHTML = d.error; bubble.classList.remove('streaming'); busy=false; return; }
+
+        const icons = {
+            'sunny':'☀️','clear':'🌙','partly':'⛅','overcast':'☁️',
+            'mist':'🌫️','fog':'🌫️','rain':'🌧️','drizzle':'🌦️',
+            'snow':'❄️','sleet':'🌨️','blizzard':'🌨️','thunder':'⛈️','patchy':'🌦️'
+        };
+        function getIcon(desc) {
+            const d2 = desc.toLowerCase();
+            return Object.entries(icons).find(([k]) => d2.includes(k))?.[1] || '🌡️';
+        }
+        function dayLabel(dateStr) {
+            const d = new Date(dateStr + 'T12:00:00');
+            return d.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+        }
+
+        let html = `<div style="font-size:1.1rem;font-weight:700;margin-bottom:6px">🌤 ${d.location}</div>`;
+        html += `<div style="font-size:1.8rem;font-weight:700;margin-bottom:4px">${d.temp_f}°F</div>`;
+        html += `<div style="color:#8b949e;margin-bottom:4px">${d.desc} · Feels like ${d.feels_f}°F</div>`;
+        html += `<div style="color:#8b949e;margin-bottom:12px;font-size:0.85rem">💧 ${d.humidity}% humidity · 💨 ${d.wind_mph}mph ${d.wind_dir}</div>`;
+        html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">`;
+        for (const day of d.forecast) {
+            html += `<div style="background:#21262d;border-radius:8px;padding:8px;text-align:center">
+                <div style="font-size:0.75rem;color:#8b949e">${dayLabel(day.date)}</div>
+                <div style="font-size:1.4rem;margin:4px 0">${getIcon(day.desc)}</div>
+                <div style="font-size:0.8rem;font-weight:600">${day.hi}°/${day.lo}°F</div>
+                <div style="font-size:0.7rem;color:#8b949e">${day.desc}</div>
+                <div style="font-size:0.7rem;color:#58a6ff">💧 ${day.rain}%</div>
+            </div>`;
+        }
+        html += `</div>`;
+        bubble.innerHTML = html;
+    } catch(e) {
+        bubble.textContent = 'Could not fetch weather.';
+    }
+
+    bubble.classList.remove('streaming');
+    saveHistory();
+    busy = false;
+    document.getElementById('sb').disabled = false;
 }
 
 // ── Run a command (no user input bubble for system cmds) ──────────────────────

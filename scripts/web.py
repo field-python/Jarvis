@@ -387,6 +387,45 @@ def stocks_page():
     return render_template("stocks.html")
 
 
+@app.route("/api/weather")
+def weather_api():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    import urllib.request, urllib.parse
+    location = request.args.get("location", read_conf("location.conf", "Anchorage, Alaska"))
+    loc_enc  = urllib.parse.quote(location)
+    try:
+        req = urllib.request.Request(
+            f"https://wttr.in/{loc_enc}?format=j1",
+            headers={"User-Agent": "curl/7.68.0"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        current = data.get("current_condition", [{}])[0]
+        days    = data.get("weather", [])
+        forecast = []
+        for day in days[:3]:
+            forecast.append({
+                "date":    day.get("date",""),
+                "hi":      day.get("maxtempF","?"),
+                "lo":      day.get("mintempF","?"),
+                "desc":    day.get("hourly",[{}])[4].get("weatherDesc",[{}])[0].get("value",""),
+                "rain":    day.get("hourly",[{}])[4].get("chanceofrain","0"),
+            })
+        return jsonify({
+            "location":  location,
+            "temp_f":    current.get("temp_F","?"),
+            "feels_f":   current.get("FeelsLikeF","?"),
+            "desc":      current.get("weatherDesc",[{}])[0].get("value",""),
+            "humidity":  current.get("humidity","?"),
+            "wind_mph":  current.get("windspeedMiles","?"),
+            "wind_dir":  current.get("winddir16Point","?"),
+            "forecast":  forecast,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/stocks")
 def stocks_api():
     if not session.get("authenticated"):

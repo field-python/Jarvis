@@ -90,6 +90,47 @@ def fetch_wttr(location, fmt):
         return ""
 
 
+def fetch_forecast(location):
+    import json
+    loc = urllib.parse.quote(location)
+    url = f"https://wttr.in/{loc}?format=j1"
+    req = urllib.request.Request(url, headers={"User-Agent": "curl/7.68.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+
+
+def print_forecast(data):
+    if not data:
+        return
+    days = data.get("weather", [])
+    icons = {"Sunny":"☀️ ","Clear":"🌙","Partly cloudy":"⛅","Overcast":"☁️ ",
+             "Mist":"🌫️ ","Fog":"🌫️ ","Light rain":"🌦️ ","Moderate rain":"🌧️ ",
+             "Heavy rain":"🌧️ ","Light snow":"🌨️ ","Moderate snow":"❄️ ",
+             "Heavy snow":"❄️ ","Blizzard":"🌨️ ","Thunder":"⛈️ ",
+             "Patchy rain":"🌦️ ","Light sleet":"🌨️ ","Sleet":"🌨️ "}
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("  3-Day Forecast")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    for day in days[:3]:
+        date_str = day.get("date","")
+        try:
+            from datetime import datetime as dt
+            d = dt.strptime(date_str, "%Y-%m-%d")
+            label = d.strftime("%a %b %-d")
+        except Exception:
+            label = date_str
+        hi   = day.get("maxtempF","?")
+        lo   = day.get("mintempF","?")
+        desc = day.get("hourly",[{}])[4].get("weatherDesc",[{}])[0].get("value","")
+        icon = next((v for k,v in icons.items() if k.lower() in desc.lower()), "🌡️ ")
+        rain = day.get("hourly",[{}])[4].get("chanceofrain","0")
+        print(f"  {icon} {label:<10}  {hi}°/{lo}°F  {desc}  💧{rain}%")
+    print()
+
+
 def show_weather(location):
     now          = datetime.now()
     current_date = f"{now.strftime('%A, %B')} {now.day}, {now.year}"
@@ -99,6 +140,7 @@ def show_weather(location):
 
     weather_raw    = fetch_wttr(location, "4")
     weather_detail = fetch_wttr(location, "%l:+%C,+%t+(feels+%f),+humidity+%h,+wind+%w,+%P")
+    forecast_data  = fetch_forecast(location)
 
     if not weather_raw and not weather_detail:
         print("Could not fetch weather. Check your connection.")
@@ -130,6 +172,7 @@ def show_weather(location):
     subprocess.run([sys.executable, generate_script, model, host, tmp.name])
     print()
     os.unlink(tmp.name)
+    print_forecast(forecast_data)
     return True
 
 

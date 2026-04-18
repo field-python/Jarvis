@@ -33,9 +33,9 @@ if len(sys.argv) < 2:
 
 question = " ".join(sys.argv[1:])
 
-# ── archive search ────────────────────────────────────────────────────────────
+# ── archive search (cite mode only — skip for brief/detailed/voice for speed) ──
 hits = ""
-if mode not in ("brief", "voice"):
+if mode == "cite":
     semantic_script = base_dir / "scripts" / "semantic-search.py"
     if semantic_script.exists():
         result = subprocess.run(
@@ -45,7 +45,6 @@ if mode not in ("brief", "voice"):
         hits = result.stdout.strip()
 
     if not hits:
-        # Keyword fallback
         search_script = base_dir / "scripts" / "search.py"
         if search_script.exists():
             result = subprocess.run(
@@ -53,7 +52,6 @@ if mode not in ("brief", "voice"):
                 capture_output=True, text=True
             )
             raw_hits = result.stdout.strip().splitlines()
-            # Filter noise, cap at 4 lines, 500 chars each
             filtered = [ln[:500] for ln in raw_hits
                         if "/templates/" not in ln and "/.cache/" not in ln][:4]
             hits = "\n".join(filtered)
