@@ -33,9 +33,7 @@ LOWER = [(k,n,d) for k,n,d,s in CATEGORIES if s=="lower"]
 ALL_KEYS = [k for k,_,_,_ in CATEGORIES]
 
 DIE_TOP    = "╔═══╗"
-DIE_MID    = "║ {} ║"
 DIE_BOT    = "╚═══╝"
-DIE_FACES  = {1:"⚀",2:"⚁",3:"⚂",4:"⚃",5:"⚄",6:"⚅"}
 
 def getch():
     fd = sys.stdin.fileno()
@@ -130,7 +128,7 @@ def draw(dice, kept, rolls_left, scores, cursor, phase, round_num):
     # ── Dice row ──────────────────────────────────────────────────────────────
     tops  = "  ".join(DIE_TOP for _ in range(5))
     mids  = "  ".join(
-        f"{'║ ' + GR + DIE_FACES[d] + R + ' ║' if kept[i] else '║ ' + B + DIE_FACES[d] + R + ' ║'}"
+        f"║ {GR}{B}{d}{R} ║" if kept[i] else f"║ {B}{d}{R} ║"
         for i,d in enumerate(dice)
     )
     bots  = "  ".join(DIE_BOT for _ in range(5))
