@@ -108,18 +108,22 @@ def browse_recipes(category_filter=None):
         label = CATEGORIES.get(cat, cat.title())
         items.append((title, label, f))
 
-    selected  = 0
-    view_top  = 0   # index of first visible item
+    selected = 0
+    view_top = 0
 
-    def draw(sel, top):
+    def draw(sel, top, hard_clear=False):
         try:
             rows, _ = os.get_terminal_size()
         except OSError:
             rows = 24
-        visible = max(4, rows - 10)  # conservative margin so list never overflows
-        # Buffer all output then write at once — eliminates flicker
-        buf = "\033[2J\033[H"   # clear screen + cursor home
-        buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
+        visible = max(4, rows - 10)
+        # hard_clear uses os.system for first draw / after recipe view (ensures top)
+        # subsequent draws overwrite in place with cursor-home (no flash)
+        if hard_clear:
+            os.system("clear")
+        else:
+            sys.stdout.write("\033[H")
+        buf  = f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
         buf += f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}\n"
         buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
         buf += "\n"
@@ -131,37 +135,46 @@ def browse_recipes(category_filter=None):
                 buf += f"  {DIM}   {title:<40}  [{cat_label}]{RESET}\n"
         buf += "\n"
         scroll_hint = f"  {DIM}({top+1}-{min(top+visible, len(items))} of {len(items)})  " if len(items) > visible else "  "
-        buf += f"{scroll_hint}↑↓ select  |  Enter view  |  / or S search  |  Q/ESC exit{RESET}\n"
+        buf += f"{scroll_hint}↑↓ select  |  Enter view  |  / search  |  Q/ESC exit{RESET}\n"
         sys.stdout.write(buf)
         sys.stdout.flush()
         return visible
 
+    # Flush any buffered keypresses from the menu before entering browse loop
+    import select as _sel
+    import termios as _termios
+    _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
+
+    draw(selected, view_top, hard_clear=True)
+
     while True:
-        visible = draw(selected, view_top)
         key = getch()
 
         if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
-            sys.stdout.write("\033[2J\033[H")
-            sys.stdout.flush()
+            os.system("clear")
             return
         elif key == "\x1b[A":   # up
+            visible = draw(selected, view_top)
             selected = (selected - 1) % len(items)
             if selected < view_top:
                 view_top = selected
-            elif selected == len(items) - 1:   # wrapped to bottom
+            elif selected == len(items) - 1:
                 view_top = max(0, len(items) - visible)
+            draw(selected, view_top)
         elif key == "\x1b[B":   # down
+            visible = draw(selected, view_top)
             selected = (selected + 1) % len(items)
             if selected >= view_top + visible:
                 view_top = selected - visible + 1
-            elif selected == 0:                # wrapped to top
+            elif selected == 0:
                 view_top = 0
-        elif key in ("/", "s", "S"):           # search inside browser
-            sys.stdout.write("\033[2J\033[H")
-            sys.stdout.flush()
+            draw(selected, view_top)
+        elif key in ("/", "s", "S"):
+            os.system("clear")
             try:
                 query = input("  Search recipes: ").strip()
             except (EOFError, KeyboardInterrupt):
+                draw(selected, view_top, hard_clear=True)
                 continue
             if query:
                 results = []
@@ -177,6 +190,7 @@ def browse_recipes(category_filter=None):
                 else:
                     print(f"  No results for '{query}'. Press any key...")
                     getch()
+            draw(selected, view_top, hard_clear=True)
         elif key in ("\r", "\n"):
             display_recipe(items[selected][2])
             print()
@@ -185,6 +199,9 @@ def browse_recipes(category_filter=None):
                 getch()
             except KeyboardInterrupt:
                 return
+            # Flush any buffered keys, then hard-clear back to list
+            _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
+            draw(selected, view_top, hard_clear=True)
 
 
 def list_recipes(category_filter=None):
