@@ -14,39 +14,56 @@ JARVIS = os.environ.get("JARVIS_LAUNCHER", os.path.expanduser("~/Jarvis"))
 
 MENU = [
     # (label, command_args, needs_input, input_prompt)
-    # Use ["__submenu__", "key"] to open a submenu defined in SUBMENUS below.
-
-    ("🤖  Ask Jarvis",        ["__submenu__", "ask"],       False, ""),
-    ("💬  Chat mode",         ["chat"],                     False, ""),
-    ("🎙️  Voice mode",        ["voice"],                    False, ""),
-    ("🎮  Games",             ["__submenu__", "games"],     False, ""),
-    ("💡  Brainstorm",        ["__submenu__", "tools"],     False, ""),
-    ("🩺  Symptom checker",   ["symptom"],                  False, ""),
-    ("🍳  Recipes",           ["__submenu__", "recipes"],   False, ""),
-    ("🌤️  News & Weather",    ["__submenu__", "news"],      False, ""),
-    ("📈  Stock Market",      ["__submenu__", "stocks"],    False, ""),
-    ("🎯  Skill of the day",  ["skill"],                    False, ""),
-    ("📝  Notes",             ["__submenu__", "notes"],     False, ""),
-    ("🌐  Web search",        ["web"],                      True,  "Search: "),
-    ("💻  Code help",         ["code"],                     True,  "Describe what to build: "),
-    ("🗣️  Language Hub",      ["language"],                 False, ""),
-    ("📚  Learn to code",     ["learn"],                    True,  "Topic (e.g. Python for loops): "),
-    ("🧮  Calculator",        ["calc"],                     True,  "Expression (e.g. 180 lbs to kg): "),
-    ("⏱️  Set a timer",       ["timer"],                    True,  "Duration (e.g. 1h, 10m, 30s): "),
-    ("📖  Holy Books",        ["__submenu__", "holy_books"], False, ""),
-    ("🏛️  Classic Library",   ["__submenu__", "classics"],  False, ""),
-    ("🔍  Search",            ["__submenu__", "search"],    False, ""),
-    ("⚖️  Interactive Law",   ["legal"],                    True,  "Legal scenario or question: "),
-    ("📜  Law Library",       ["legal", "browse"],          False, ""),
-    ("✅  To-do list",        ["__submenu__", "todo"],      False, ""),
-    ("🔔  Reminders",         ["__submenu__", "reminders"], False, ""),
-    ("⚙️  System & Updates",  ["__submenu__", "system"],    False, ""),
-    ("❓  Show help",         ["help"],                     False, ""),
+    ("🤖  AI",          ["__submenu__", "ai"],       False, ""),
+    ("🔧  Tools",       ["__submenu__", "tools_main"], False, ""),
+    ("🏠  Life",        ["__submenu__", "life"],     False, ""),
+    ("📰  Info",        ["__submenu__", "info"],     False, ""),
+    ("📚  Library",     ["__submenu__", "library"],  False, ""),
+    ("🎮  Games",       ["__submenu__", "games"],    False, ""),
+    ("⚙️  System",      ["__submenu__", "system"],   False, ""),
 ]
 
 # ── Sub-menus ─────────────────────────────────────────────────────────────────
 # Each entry: (label, cmd_args, needs_input, input_prompt) — same format as MENU.
 SUBMENUS = {
+    # ── Top-level sections ────────────────────────────────────────────────────
+    "ai": [
+        ("🤖  Ask Jarvis",        ["__submenu__", "ask"],    False, ""),
+        ("💬  Chat mode",         ["chat"],                  False, ""),
+        ("🎙️  Voice mode",        ["voice"],                 False, ""),
+        ("🎯  Skill of the day",  ["skill"],                 False, ""),
+    ],
+    "tools_main": [
+        ("💡  Brainstorm",        ["__submenu__", "tools"],  False, ""),
+        ("💻  Code help",         ["code"],                  True,  "Describe what to build: "),
+        ("📚  Learn to code",     ["learn"],                 True,  "Topic (e.g. Python for loops): "),
+        ("🗣️  Language Hub",      ["language"],              False, ""),
+        ("🧮  Calculator",        ["calc"],                  True,  "Expression (e.g. 180 lbs to kg): "),
+        ("✏️  Edit / proofread",  ["edit"],                  True,  "Text to improve: "),
+        ("🌐  Translate",         ["translate"],             True,  "Text (e.g. hello to Spanish): "),
+    ],
+    "life": [
+        ("🍳  Recipes",           ["__submenu__", "recipes"],  False, ""),
+        ("🩺  Symptom checker",   ["symptom"],                 False, ""),
+        ("⏱️  Set a timer",       ["timer"],                   True,  "Duration (e.g. 1h, 10m, 30s): "),
+        ("🔔  Reminders",         ["__submenu__", "reminders"],False, ""),
+        ("✅  To-do list",        ["__submenu__", "todo"],     False, ""),
+        ("📝  Notes",             ["__submenu__", "notes"],    False, ""),
+    ],
+    "info": [
+        ("🌤️  News & Weather",    ["__submenu__", "news"],    False, ""),
+        ("📈  Stock Market",      ["__submenu__", "stocks"],  False, ""),
+        ("🌐  Web search",        ["web"],                    True,  "Search: "),
+        ("🔍  Search & Find",     ["__submenu__", "search"],  False, ""),
+    ],
+    "library": [
+        ("📖  Holy Books",        ["__submenu__", "holy_books"], False, ""),
+        ("🏛️  Classic Library",   ["__submenu__", "classics"],   False, ""),
+        ("⚖️  Interactive Law",   ["legal"],                     True,  "Legal scenario or question: "),
+        ("📜  Law Library",       ["legal", "browse"],           False, ""),
+        ("🧪  Erowid Reference",  ["erowid"],                    False, ""),
+    ],
+    # ── Ask submenu ───────────────────────────────────────────────────────────
     "ask": [
         ("💬  Ask a question",        ["ask"],      True,  "Question: "),
         ("⚡  Brief answer",          ["brief"],    True,  "Question: "),
