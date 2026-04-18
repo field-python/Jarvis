@@ -280,6 +280,173 @@ def toc_browser(toc, book_name, page_size):
             return max(0, line_idx - 1)
 
 
+# ── Bible reference lookup ────────────────────────────────────────────────────
+
+# Maps common names/abbreviations → substring to find in the KJV file's book headers
+BIBLE_BOOKS = {
+    # Old Testament
+    "genesis":"Genesis","gen":"Genesis","gn":"Genesis",
+    "exodus":"Exodus","exo":"Exodus","ex":"Exodus",
+    "leviticus":"Leviticus","lev":"Leviticus","lv":"Leviticus",
+    "numbers":"Numbers","num":"Numbers","nm":"Numbers",
+    "deuteronomy":"Deuteronomy","deut":"Deuteronomy","dt":"Deuteronomy",
+    "joshua":"Joshua","josh":"Joshua","jos":"Joshua",
+    "judges":"Judges","judg":"Judges","jdg":"Judges",
+    "ruth":"Ruth","rut":"Ruth",
+    "1 samuel":"First Book of Samuel","1sam":"First Book of Samuel","1 sam":"First Book of Samuel",
+    "2 samuel":"Second Book of Samuel","2sam":"Second Book of Samuel","2 sam":"Second Book of Samuel",
+    "1 kings":"First Book of the Kings","1kings":"First Book of the Kings","1 kgs":"First Book of the Kings",
+    "2 kings":"Second Book of the Kings","2kings":"Second Book of the Kings","2 kgs":"Second Book of the Kings",
+    "1 chronicles":"First Book of the Chronicles","1chr":"First Book of the Chronicles","1 chr":"First Book of the Chronicles",
+    "2 chronicles":"Second Book of the Chronicles","2chr":"Second Book of the Chronicles","2 chr":"Second Book of the Chronicles",
+    "ezra":"Ezra","ezr":"Ezra",
+    "nehemiah":"Nehemiah","neh":"Nehemiah",
+    "esther":"Esther","est":"Esther",
+    "job":"Book of Job","jb":"Book of Job",
+    "psalms":"Book of Psalms","psalm":"Book of Psalms","ps":"Book of Psalms","psa":"Book of Psalms",
+    "proverbs":"Proverbs","prov":"Proverbs","prv":"Proverbs",
+    "ecclesiastes":"Ecclesiastes","eccl":"Ecclesiastes","ecc":"Ecclesiastes",
+    "song of solomon":"Song of Solomon","song":"Song of Solomon","sos":"Song of Solomon",
+    "isaiah":"Isaiah","isa":"Isaiah",
+    "jeremiah":"Jeremiah","jer":"Jeremiah",
+    "lamentations":"Lamentations","lam":"Lamentations",
+    "ezekiel":"Ezekiel","ezek":"Ezekiel","eze":"Ezekiel",
+    "daniel":"Daniel","dan":"Daniel","dn":"Daniel",
+    "hosea":"Hosea","hos":"Hosea",
+    "joel":"Joel","jl":"Joel",
+    "amos":"Amos","am":"Amos",
+    "obadiah":"Obadiah","obad":"Obadiah",
+    "jonah":"Jonah","jon":"Jonah",
+    "micah":"Micah","mic":"Micah",
+    "nahum":"Nahum","nah":"Nahum",
+    "habakkuk":"Habakkuk","hab":"Habakkuk",
+    "zephaniah":"Zephaniah","zeph":"Zephaniah","zep":"Zephaniah",
+    "haggai":"Haggai","hag":"Haggai",
+    "zechariah":"Zechariah","zech":"Zechariah","zec":"Zechariah",
+    "malachi":"Malachi","mal":"Malachi",
+    # New Testament
+    "matthew":"Gospel According to Saint Matthew","matt":"Gospel According to Saint Matthew","mt":"Gospel According to Saint Matthew",
+    "mark":"Gospel According to Saint Mark","mk":"Gospel According to Saint Mark","mar":"Gospel According to Saint Mark",
+    "luke":"Gospel According to Saint Luke","luk":"Gospel According to Saint Luke","lk":"Gospel According to Saint Luke",
+    "john":"Gospel According to Saint John","jhn":"Gospel According to Saint John","jn":"Gospel According to Saint John",
+    "acts":"Acts of the Apostles","act":"Acts of the Apostles",
+    "romans":"Epistle of Paul the Apostle to the Romans","rom":"Epistle of Paul the Apostle to the Romans","rm":"Epistle of Paul the Apostle to the Romans",
+    "1 corinthians":"First Epistle of Paul the Apostle to the Corinthians","1cor":"First Epistle of Paul the Apostle to the Corinthians","1 cor":"First Epistle of Paul the Apostle to the Corinthians",
+    "2 corinthians":"Second Epistle of Paul the Apostle to the Corinthians","2cor":"Second Epistle of Paul the Apostle to the Corinthians","2 cor":"Second Epistle of Paul the Apostle to the Corinthians",
+    "galatians":"Galatians","gal":"Galatians",
+    "ephesians":"Ephesians","eph":"Ephesians",
+    "philippians":"Philippians","phil":"Philippians","php":"Philippians",
+    "colossians":"Colossians","col":"Colossians",
+    "1 thessalonians":"First Epistle of Paul the Apostle to the Thessalonians","1thess":"First Epistle of Paul the Apostle to the Thessalonians","1 thess":"First Epistle of Paul the Apostle to the Thessalonians",
+    "2 thessalonians":"Second Epistle of Paul the Apostle to the Thessalonians","2thess":"Second Epistle of Paul the Apostle to the Thessalonians","2 thess":"Second Epistle of Paul the Apostle to the Thessalonians",
+    "1 timothy":"First Epistle of Paul the Apostle to Timothy","1tim":"First Epistle of Paul the Apostle to Timothy","1 tim":"First Epistle of Paul the Apostle to Timothy",
+    "2 timothy":"Second Epistle of Paul the Apostle to Timothy","2tim":"Second Epistle of Paul the Apostle to Timothy","2 tim":"Second Epistle of Paul the Apostle to Timothy",
+    "titus":"Titus","tit":"Titus",
+    "philemon":"Philemon","phlm":"Philemon",
+    "hebrews":"Hebrews","heb":"Hebrews",
+    "james":"General Epistle of James","jas":"General Epistle of James","jm":"General Epistle of James",
+    "1 peter":"First Epistle General of Peter","1pet":"First Epistle General of Peter","1 pet":"First Epistle General of Peter",
+    "2 peter":"Second General Epistle of Peter","2pet":"Second General Epistle of Peter","2 pet":"Second General Epistle of Peter",
+    "1 john":"First Epistle General of John","1jn":"First Epistle General of John","1 jn":"First Epistle General of John",
+    "2 john":"Second Epistle General of John","2jn":"Second Epistle General of John","2 jn":"Second Epistle General of John",
+    "3 john":"Third Epistle General of John","3jn":"Third Epistle General of John","3 jn":"Third Epistle General of John",
+    "jude":"General Epistle of Jude","jud":"General Epistle of Jude",
+    "revelation":"Revelation of Saint John","rev":"Revelation of Saint John","revelations":"Revelation of Saint John",
+}
+
+def parse_bible_ref(ref):
+    """
+    Parse references like 'Luke 2', 'Rev 21:1-8', 'John 3:16', '1 Cor 13'.
+    Returns (book_key, chapter, v_start, v_end) or None.
+    """
+    ref = ref.strip()
+    m = re.match(r'^(\d\s+\w+|\w+)\s+(\d+)(?::(\d+)(?:-(\d+))?)?$', ref, re.IGNORECASE)
+    if not m:
+        return None
+    book_raw  = m.group(1).strip().lower()
+    chapter   = int(m.group(2))
+    v_start   = int(m.group(3)) if m.group(3) else None
+    v_end     = int(m.group(4)) if m.group(4) else v_start
+    book_key  = BIBLE_BOOKS.get(book_raw)
+    if not book_key:
+        return None
+    return book_key, chapter, v_start, v_end
+
+
+def extract_bible_passage(raw_text, book_key, chapter, v_start=None, v_end=None):
+    """
+    Extract a chapter or verse range from the KJV Bible raw text.
+    Returns (list_of_lines, ref_label) or (None, error_msg).
+    """
+    lines = raw_text.splitlines()
+
+    # Find the book content start — collect all matches, take the last one.
+    # The actual book section always comes after the TOC, so last = real content.
+    book_start = -1
+    candidates = []
+    for i, line in enumerate(lines):
+        if book_key.lower() in line.lower() and len(line.strip()) < 100:
+            for j in range(i + 1, min(i + 25, len(lines))):
+                if re.match(r'^1:\d+', lines[j].strip()):
+                    candidates.append(i)
+                    break
+    if candidates:
+        book_start = candidates[-1]
+
+    if book_start == -1:
+        return None, f"Could not locate book in text"
+
+    # Extract lines belonging to the requested chapter
+    chapter_prefix = f"{chapter}:"
+    result         = []
+    in_chapter     = False
+    continuation   = False   # a line with no verse number continuing previous verse
+
+    for i in range(book_start + 1, len(lines)):
+        line    = lines[i]
+        stripped = line.strip()
+
+        # Detect start of a different chapter — stop
+        verse_m = re.match(r'^(\d+):(\d+)', stripped)
+        if verse_m:
+            c = int(verse_m.group(1))
+            v = int(verse_m.group(2))
+            if c == chapter:
+                in_chapter  = True
+                continuation = True
+                if v_start is None:
+                    result.append(line)
+                elif v_start <= v <= (v_end if v_end else 99999):
+                    result.append(line)
+                elif v_end and v > v_end:
+                    break
+                else:
+                    continuation = False
+            elif in_chapter:
+                break   # left the chapter
+        elif in_chapter and continuation and stripped:
+            # Continuation line (no verse number) — include if we're capturing
+            if result:
+                result.append(line)
+        elif in_chapter and not stripped:
+            if result:
+                result.append("")  # preserve blank lines between sections
+
+    if not result:
+        label = f"{book_key.split()[-1]} {chapter}"
+        if v_start:
+            label += f":{v_start}" + (f"-{v_end}" if v_end and v_end != v_start else "")
+        return None, f"No content found for {label}"
+
+    # Build readable label
+    book_display = book_key.split(":")[-1].strip() if ":" in book_key else book_key
+    label = f"{book_display}  Chapter {chapter}"
+    if v_start:
+        label += f"  verses {v_start}" + (f"–{v_end}" if v_end and v_end != v_start else "")
+
+    return result, label
+
+
 def strip_ansi(s):
     return re.sub(r"\033\[[0-9;]*m", "", s)
 
@@ -297,6 +464,67 @@ def highlight_line(line, term):
     if idx == -1:
         return line
     return f"\033[7m{plain}\033[0m"
+
+
+def _show_passage(raw_lines, label, tradition):
+    """
+    Display extracted Bible passage (list of raw text lines) in a paged viewer.
+    Q/ESC returns to the book viewer.
+    """
+    # Render nicely: bold chapter:verse numbers, normal text
+    rendered = []
+    for line in raw_lines:
+        if not line.strip():
+            rendered.append("")
+            continue
+        m = re.match(r'^(\d+:\d+)\s+(.*)', line.strip())
+        if m:
+            rendered.append(f"  {BOLD}{GOLD}{m.group(1)}{RESET}  {m.group(2)}")
+        else:
+            rendered.append(f"       {line.strip()}")
+
+    col       = trad_color(tradition)
+    total     = len(rendered)
+    offset    = 0
+
+    while True:
+        try:
+            term_rows = os.get_terminal_size().lines - 5
+        except OSError:
+            term_rows = 20
+        page_size = max(8, term_rows)
+
+        clear()
+        print(f"{BOLD}{GOLD}{'━' * 72}{RESET}")
+        print(f"{BOLD}  {label}{RESET}  {col}{DIM}[{tradition}]{RESET}")
+        print(f"{BOLD}{GOLD}{'━' * 72}{RESET}")
+
+        end    = min(offset + page_size, total)
+        at_end = end >= total
+
+        for line in rendered[offset:end]:
+            print(line)
+
+        print()
+        pct        = int((end / total) * 100) if total > 0 else 100
+        bar_filled = int(pct / 5)
+        bar        = f"{GOLD}{'█' * bar_filled}{'░' * (20 - bar_filled)}{RESET}"
+
+        if at_end:
+            print(f"  {bar}  {DIM}{pct}%  ── END ──  Q/ESC back{RESET}")
+        else:
+            print(f"  {bar}  {DIM}{pct}%  Space/↓ next  ↑ up  Q/ESC back{RESET}")
+
+        key = getch()
+        if key in ("q", "Q", "\x1b"):
+            return
+        elif key in (" ", "\x1b[B", "\r", "\n"):
+            if not at_end:
+                offset = min(offset + page_size, total - page_size)
+        elif key == "\x1b[A":
+            offset = max(0, offset - page_size)
+        elif key in ("g", "G"):
+            offset = 0
 
 
 def view_book(book):
@@ -372,15 +600,33 @@ def view_book(book):
             if jump is not None:
                 offset = min(jump, max(0, total - page_size))
         elif key == "/":
-            q = input_with_esc(f"  {GOLD}Search: {RESET}")
+            is_bible = "bible" in book["file"].lower() or "kjv" in book["file"].lower()
+            prompt   = f"  {GOLD}Lookup (e.g. Luke 2, Rev 21:1-8) or keyword: {RESET}" if is_bible else f"  {GOLD}Search: {RESET}"
+            q = input_with_esc(prompt)
             if q and q.strip():
-                search_term    = q.strip()
-                search_matches = find_matches(lines, search_term)
-                search_idx     = 0
-                if search_matches:
-                    # jump to first match
-                    offset = max(0, min(search_matches[0] - page_size // 3,
-                                        total - page_size))
+                # Try Bible reference lookup first
+                parsed = parse_bible_ref(q.strip()) if is_bible else None
+                if parsed:
+                    book_key, chapter, v_start, v_end = parsed
+                    raw_text = book["path"].read_text(encoding="utf-8")
+                    passage, label = extract_bible_passage(raw_text, book_key, chapter, v_start, v_end)
+                    if passage:
+                        _show_passage(passage, label, book["tradition"])
+                    else:
+                        # show error briefly then fall through to text search
+                        search_term    = q.strip()
+                        search_matches = find_matches(lines, search_term)
+                        search_idx     = 0
+                        if search_matches:
+                            offset = max(0, min(search_matches[0] - page_size // 3, total - page_size))
+                else:
+                    search_term    = q.strip()
+                    search_matches = find_matches(lines, search_term)
+                    search_idx     = 0
+                    if search_matches:
+                        # jump to first match
+                        offset = max(0, min(search_matches[0] - page_size // 3,
+                                            total - page_size))
         elif key in ("n", "N") and search_matches:
             if key == "n":
                 search_idx = (search_idx + 1) % len(search_matches)
