@@ -62,13 +62,12 @@ def calc_payout(result, bet):
             return bet * pay2, f"2× {sym}  {YL}×{pay2}{R}"
     return 0, f"{RD}No match{R}"
 
-def draw(result=None, msg="", chips=0, bet=0, reel=None):
-    os.system("clear")
+def _render(result=None, msg="", chips=0, bet=0, reel=None):
+    """Print slots UI to stdout — caller decides whether to clear first."""
     print(f"{B}{CY}{HR}{R}")
     print(f"{B}{CY}  Jarvis  🎰  Slots{R}  {DIM}Chips: {chips_bar(chips)}{R}")
     print(f"{B}{CY}{HR}{R}\n")
 
-    # Reel — always at top
     print(f"  {DIM}┏━━━━━━━━━━━━━━━┓{R}")
     if reel:
         print(f"  {B}┃  {reel[0]}  {reel[1]}  {reel[2]}  ┃{R}")
@@ -92,10 +91,21 @@ def draw(result=None, msg="", chips=0, bet=0, reel=None):
     print(f"  {YL}[Space/Enter]{R} Spin   {YL}[Q]{R} Quit\n")
 
 
+def draw(result=None, msg="", chips=0, bet=0):
+    os.system("clear")
+    _render(result=result, msg=msg, chips=chips, bet=bet)
+
+
 def animate_spin(chips, bet):
-    for _ in range(10):
+    """Spin animation — draws first frame with clear, subsequent frames overwrite in place."""
+    os.system("clear")
+    for i in range(10):
         reel = [random.choice(SYM_LIST) for _ in range(3)]
-        draw(reel=reel, chips=chips, bet=bet)
+        if i > 0:
+            # Move cursor to top-left and overwrite — no erase = no flash
+            sys.stdout.write("\033[H")
+            sys.stdout.flush()
+        _render(reel=reel, chips=chips, bet=bet)
         time.sleep(0.07)
 
 def main():
