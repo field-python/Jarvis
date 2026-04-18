@@ -197,6 +197,8 @@ def do_help():
                                    foundational documents (Constitution, Magna Carta, etc.)
   Jarvis legal "scenario"        Analyze a legal scenario, predict outcome, cite precedent
   Jarvis legal rights            Plain-language breakdown of constitutional rights
+  Jarvis speech                  Write a speech — guided prompts for occasion, tone, and length
+  Jarvis speech "description"    Skip first prompt, e.g. Jarvis speech "wedding toast for my sister"
   Jarvis diagnose                System diagnostics + Jarvis analysis
   Jarvis diagnose --wifi         WiFi-specific diagnostics
   Jarvis rebuild-index           Rebuild semantic search index
@@ -642,6 +644,8 @@ def main():
         run_py("download-medical.py", *rest)
     elif cmd in ("download-ham-radio", "download-ham", "download-comms"):
         run_py("download-ham-radio.py", *rest)
+    elif cmd in ("speech", "speechwrite", "write-speech"):
+        run_py("speech.py", *rest)
     elif cmd in ("legal", "law", "rights"):
         run_py("legal.py", *rest)
     elif cmd in ("diagnose", "diag", "diagnostics"):
