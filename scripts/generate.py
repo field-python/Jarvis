@@ -17,11 +17,13 @@ use_think = os.environ.get("JARVIS_THINK", "1").lower() not in ("0", "false", "n
 
 def stream_output(chunks):
     """Stream chunks to stdout, stripping <think> blocks, with word wrapping."""
-    import shutil
     try:
-        cols = shutil.get_terminal_size().columns - 1
+        cols = os.get_terminal_size(2).columns - 1  # fd 2 = stderr, stays a tty even when stdout is piped
     except Exception:
-        cols = 79
+        try:
+            cols = os.get_terminal_size(1).columns - 1
+        except Exception:
+            cols = 79
 
     in_think = False
     pending  = ""   # raw chunk accumulator for think-stripping
