@@ -111,7 +111,7 @@ def browse_recipes(category_filter=None):
     selected = 0
     view_top = 0
 
-    import termios as _termios
+    import termios as _termios, select as _select, time as _time
 
     def get_visible():
         try:
@@ -122,15 +122,16 @@ def browse_recipes(category_filter=None):
 
     def redraw():
         visible = get_visible()
-        # Clamp view_top so selected is always in view
+        # Keep selected in view
         if selected < view_top:
             view_top_new = selected
         elif selected >= view_top + visible:
             view_top_new = selected - visible + 1
         else:
             view_top_new = view_top
-        # Direct ANSI clear — same buffer as content, no subprocess timing gap
-        buf  = "\033[2J\033[H"
+        # \033[H = cursor to home, \033[J = clear from cursor down
+        # This overwrites content from top without scrolling viewport
+        buf  = "\033[H\033[J"
         buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n"
         buf += f"{BOLD}{CYAN}  Jarvis Recipes  |  {len(items)} recipes{RESET}\n"
         buf += f"{BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n\n"
@@ -150,60 +151,82 @@ def browse_recipes(category_filter=None):
         sys.stdout.flush()
         return view_top_new
 
-    # Flush buffered keypresses (e.g. Enter from menu)
-    _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
+    def flush_input():
+        """Drain any buffered input before reading."""
+        _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
+        _time.sleep(0.05)
+        while _select.select([sys.stdin], [], [], 0)[0]:
+            try:
+                os.read(sys.stdin.fileno(), 64)
+            except Exception:
+                break
+
+    # Enter alternate screen so list always starts at top
+    sys.stdout.write("\033[?1049h\033[H\033[J")
+    sys.stdout.flush()
+
+    flush_input()
     view_top = redraw()
 
-    while True:
-        key = getch()
+    try:
+        while True:
+            key = getch()
 
-        if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
-            sys.stdout.write("\033[2J\033[H")
-            sys.stdout.flush()
-            return
+            if key in ("q", "Q", "\x03", "\x1b") or (key.startswith("\x1b") and key not in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D")):
+                break
 
-        elif key == "\x1b[A":   # up
-            selected = (selected - 1) % len(items)
-            view_top = redraw()
-
-        elif key == "\x1b[B":   # down
-            selected = (selected + 1) % len(items)
-            view_top = redraw()
-
-        elif key in ("/", "s", "S"):
-            sys.stdout.write("\033[2J\033[H")
-            sys.stdout.flush()
-            try:
-                query = input("  Search recipes: ").strip()
-            except (EOFError, KeyboardInterrupt):
+            elif key == "\x1b[A":   # up
+                selected = (selected - 1) % len(items)
                 view_top = redraw()
-                continue
-            if query:
-                results = []
-                words = query.lower().split()
-                for title, label, filepath in items:
-                    text = filepath.read_text(encoding="utf-8").lower()
-                    if any(w in text for w in words):
-                        results.append((title, label, filepath))
-                if results:
-                    items[:] = results
-                    selected = 0
-                    view_top = 0
-                else:
-                    print(f"  No results for '{query}'. Press any key...")
-                    getch()
-            view_top = redraw()
 
-        elif key in ("\r", "\n"):
-            display_recipe(items[selected][2])
-            print()
-            print(f"  {DIM}Press any key to return to list...{RESET}", end="", flush=True)
-            try:
-                getch()
-            except KeyboardInterrupt:
-                return
-            _termios.tcflush(sys.stdin.fileno(), _termios.TCIFLUSH)
-            view_top = redraw()
+            elif key == "\x1b[B":   # down
+                selected = (selected + 1) % len(items)
+                view_top = redraw()
+
+            elif key in ("/", "s", "S"):
+                sys.stdout.write("\033[H\033[J")
+                sys.stdout.flush()
+                try:
+                    query = input("  Search recipes: ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    view_top = redraw()
+                    continue
+                if query:
+                    results = []
+                    words = query.lower().split()
+                    for title, label, filepath in items:
+                        text = filepath.read_text(encoding="utf-8").lower()
+                        if any(w in text for w in words):
+                            results.append((title, label, filepath))
+                    if results:
+                        items[:] = results
+                        selected = 0
+                        view_top = 0
+                    else:
+                        print(f"  No results for '{query}'. Press any key...")
+                        getch()
+                view_top = redraw()
+
+            elif key in ("\r", "\n"):
+                # Leave alt screen to show recipe in normal terminal
+                sys.stdout.write("\033[?1049l")
+                sys.stdout.flush()
+                display_recipe(items[selected][2])
+                print()
+                print(f"  {DIM}Press any key to return to list...{RESET}", end="", flush=True)
+                try:
+                    getch()
+                except KeyboardInterrupt:
+                    return
+                # Re-enter alt screen for browser
+                sys.stdout.write("\033[?1049h\033[H\033[J")
+                sys.stdout.flush()
+                flush_input()
+                view_top = redraw()
+    finally:
+        # Always restore normal screen on exit
+        sys.stdout.write("\033[?1049l")
+        sys.stdout.flush()
 
 
 def list_recipes(category_filter=None):
