@@ -91,6 +91,8 @@ def getch():
             r, _, _ = _sel.select([fd], [], [], 0.1)
             if r:
                 rest = _os.read(fd, 2).decode("utf-8", errors="replace")
+                if rest and rest[0] == "O" and len(rest) > 1:
+                    return "\x1b[" + rest[1]  # normalize \x1bOA \u2192 \x1b[A
                 return "\x1b" + rest
             return "\x1b"
         return ch
@@ -109,11 +111,11 @@ def input_with_esc(prompt_str):
         import tty as _tty
         _tty.setcbreak(fd)
         while True:
-            ch = sys.stdin.read(1)
+            ch = os.read(fd, 1).decode("utf-8", "replace")
             if ch == "\x1b":
-                r, _, _ = _sel.select([sys.stdin], [], [], 0.05)
+                r, _, _ = _sel.select([fd], [], [], 0.1)
                 if r:
-                    sys.stdin.read(2)
+                    os.read(fd, 2)
                     continue
                 sys.stdout.write("\n"); sys.stdout.flush()
                 return None

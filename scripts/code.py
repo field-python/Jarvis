@@ -38,11 +38,11 @@ def read_key(prompt_str):
     old = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)
-        ch = sys.stdin.read(1)
+        ch = os.read(fd, 1).decode("utf-8", "replace")
         if ch == "\x1b":
-            r, _, _ = select.select([sys.stdin], [], [], 0.05)
+            r, _, _ = select.select([fd], [], [], 0.1)
             if r:
-                sys.stdin.read(2)
+                os.read(fd, 2)
             sys.stdout.write("\n")
             sys.stdout.flush()
             return None

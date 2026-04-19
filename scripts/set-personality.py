@@ -35,13 +35,17 @@ def getch():
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
+        import select as _sel
         tty.setraw(fd)
-        ch = sys.stdin.read(1)
+        ch = os.read(fd, 1).decode("utf-8", "replace")
         if ch == "\x1b":
-            ch2 = sys.stdin.read(1)
-            if ch2 == "[":
-                ch3 = sys.stdin.read(1)
-                return "\x1b[" + ch3
+            r, _, _ = _sel.select([fd], [], [], 0.1)
+            if r:
+                rest = os.read(fd, 2).decode("utf-8", "replace")
+                if rest and rest[0] == "O" and len(rest) > 1:
+                    return "\x1b[" + rest[1]
+                return "\x1b" + rest
+            return "\x1b"
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)

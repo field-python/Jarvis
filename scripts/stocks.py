@@ -200,13 +200,13 @@ def interactive_mode(symbols, period="1mo"):
             break
         try:
             tty.setraw(fd)
-            ch = sys.stdin.read(1)
+            ch = os.read(fd, 1).decode("utf-8", "replace")
             if ch == "\x1b":
-                r, _, _ = select.select([sys.stdin], [], [], 0.1)
+                r, _, _ = select.select([fd], [], [], 0.1)
                 if r:
-                    ch2 = sys.stdin.read(1)
-                    if ch2 == "[":
-                        ch3 = sys.stdin.read(1)
+                    rest = os.read(fd, 2).decode("utf-8", "replace")
+                    if len(rest) == 2 and rest[0] in ("[", "O"):
+                        ch3 = rest[1]
                         if ch3 == "C" and len(symbols) > 1:
                             idx = (idx + 1) % len(symbols)
                         elif ch3 == "D" and len(symbols) > 1:
