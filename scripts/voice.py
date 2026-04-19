@@ -293,9 +293,12 @@ def ask_jarvis(question: str, history: list) -> str:
     try:
         result = subprocess.run(
             [venv_python, generate_script, model, host, tmp_path],
-            capture_output=True, text=True
+            stdout=subprocess.PIPE, stderr=None, text=True
         )
-        return result.stdout.strip()
+        answer = result.stdout.strip()
+        if not answer:
+            print("\n[No response from model — check Ollama is running or Groq key is valid]", flush=True)
+        return answer
     finally:
         try:
             os.unlink(tmp_path)
@@ -349,7 +352,7 @@ def ask_jarvis_web(question: str, history: list) -> str:
     try:
         result = subprocess.run(
             [venv_python, generate_script, model, host, tmp_path],
-            capture_output=True, text=True
+            stdout=subprocess.PIPE, stderr=None, text=True
         )
         return result.stdout.strip()
     finally:
@@ -435,7 +438,8 @@ def ask_jarvis_streaming(question: str, history: list) -> str:
                 if sentence:
                     speak(sentence)
 
-    except Exception:
+    except Exception as _e:
+        print(f"\n[streaming error: {_e}]", flush=True)
         return ask_jarvis(question, history)
 
     # Flush remaining buffer
@@ -474,9 +478,14 @@ def continuous_loop(whisper_model, pa, history: list) -> None:
     speak("Jarvis online. Continuous mode. I'm listening.")
     _drain_stream(stream, seconds=1.5)
 
+    print("\n[Listening...] Speak now.", flush=True)
+    _first_listen = True
+
     try:
         while True:
-            print("\n[Listening...] Speak now.", flush=True)
+            if not _first_listen:
+                print("\n[Listening...]", flush=True)
+            _first_listen = False
 
             audio_chunks = []
             silence_count = 0

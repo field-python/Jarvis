@@ -237,7 +237,7 @@ prompt = (
     f"{personality_instruction}\n\n"
     f"Rules:\n"
     f"- Answer from archive excerpts when relevant; otherwise use general knowledge.\n"
-    f"- Do not invent facts.\n"
+    f"- FACTUAL ACCURACY: Do not invent or guess specific facts. For historical events, be precise about who did what, who owned what, attacker vs. victim, nationalities, dates. If uncertain about a specific detail, say so — do not state it confidently.\n"
     f"- Do not tell the user to visit websites or search the internet.\n"
     f"- Do not mention file paths or archive structure unless citations were requested.\n"
     f"- Use prior conversation context naturally — if the user refers to something mentioned earlier, connect it without being asked.\n"
