@@ -165,7 +165,7 @@ def diff_menu():
                 print(f"  {BOLD}{CYAN}▶ {name:<8}{DIM}  {desc}{RESET}")
             else:
                 print(f"  {DIM}  {name:<8}  {desc}{RESET}")
-        print(f"\n  {DIM}↑↓ to navigate  |  Enter to start  |  Q to quit{RESET}")
+        print(f"\n  {DIM}↑↓ to navigate  |  Enter to start  |  ESC to quit{RESET}")
         ch = getch()
         if ch in ("\x1b[A", "\x1bOA"):    sel = (sel - 1) % 3
         elif ch in ("\x1b[B", "\x1bOB"): sel = (sel + 1) % 3
