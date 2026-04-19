@@ -141,7 +141,7 @@ def draw_game(scrambled, hint, category, time_left, time_limit, guess, score, st
         "",
         f"  Your answer: {BOLD}{guess}{RESET}_",
         "",
-        f"  {DIM}Type letters · Backspace · Enter to submit · Q to quit{RESET}",
+        f"  {DIM}Type letters  ·  Backspace  ·  Enter to submit  ·  ESC to quit{RESET}",
     ]
 
     buf = ""
@@ -170,7 +170,7 @@ def diff_menu():
         if ch in ("\x1b[A", "\x1bOA"):    sel = (sel - 1) % 3
         elif ch in ("\x1b[B", "\x1bOB"): sel = (sel + 1) % 3
         elif ch in ("\r", "\n"):          return sel
-        elif ch == "\x1b" or ch.lower() == 'q': return None   # plain ESC or Q
+        elif ch == "\x1b": return None   # plain ESC only
 
 def play_round(diff_idx, num_q=8):
     diff_name, min_len, max_len, time_limit = DIFFICULTIES[diff_idx]
@@ -219,8 +219,6 @@ def play_round(diff_idx, num_q=8):
                             os.read(fd, 2)   # discard [A / [B etc.
                         else:
                             result = 'quit'; break   # plain ESC
-                    elif ch.lower() == 'q':
-                        result = 'quit'; break
                     elif ch in ('\r', '\n'):
                         result = 'correct' if guess == word else 'wrong'
                         break

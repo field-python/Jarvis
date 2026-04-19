@@ -104,7 +104,9 @@ def show_count_menu():
     sel = 0
     while True:
         clear()
-        print(f"\n  {BOLD}{CYAN}══════════ JARVIS TRIVIA ══════════{RESET}\n")
+        print(f"\n  {BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print(f"  {BOLD}{CYAN}  🧠  Jarvis Trivia{RESET}")
+        print(f"  {BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n")
         print(f"  {DIM}How many questions?{RESET}\n")
         for i, n in enumerate(Q_COUNTS):
             if i == sel:
@@ -127,7 +129,9 @@ def show_category_menu():
     sel = 0
     while True:
         clear()
-        print(f"\n  {BOLD}{CYAN}══════════ JARVIS TRIVIA ══════════{RESET}\n")
+        print(f"\n  {BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+        print(f"  {BOLD}{CYAN}  🧠  Jarvis Trivia{RESET}")
+        print(f"  {BOLD}{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}\n")
         print(f"  {DIM}Pick a category:{RESET}\n")
         for i, (name, _) in enumerate(CATEGORIES):
             if i == sel:

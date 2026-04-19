@@ -37,11 +37,32 @@ def make_deck():
     random.shuffle(d)
     return d
 
-def fmt_card(rank, suit, hidden=False):
-    if hidden: return f"{DIM}┌───┐\n  │ {B}???{R}{DIM} │\n  └───┘{R}"
-    s = f"{RS}{suit}{R}" if suit in ("♥","♦") else suit
-    pad = " " if rank != "10" else ""
-    return f"┌───┐\n  │{B}{pad}{rank}{s}{R} │\n  └───┘"
+def card_lines(rank, suit, hidden=False):
+    """Return 5 strings representing one playing card (5-line art)."""
+    if hidden:
+        return [
+            "┌──────┐",
+            "│▓▓▓▓▓▓│",
+            "│  ???  │",
+            "│▓▓▓▓▓▓│",
+            "└──────┘",
+        ]
+    s_color = RS if suit in ("♥", "♦") else ""
+    s_reset = R if suit in ("♥", "♦") else ""
+    colored_suit = f"{s_color}{suit}{s_reset}"
+    r_len = len(rank)
+    top_pad   = " " * (6 - r_len)
+    bot_pad   = " " * (6 - r_len)
+    suit_left = " " * ((6 - 1) // 2)
+    suit_right= " " * (6 - 1 - len(suit_left))
+    r = f"{B}{rank}{R}"
+    return [
+        "┌──────┐",
+        f"│{r}{top_pad}│",
+        f"│{suit_left}{colored_suit}{suit_right}│",
+        f"│{bot_pad}{r}│",
+        "└──────┘",
+    ]
 
 def streak_bar(streak):
     filled = min(streak, 10)
@@ -56,26 +77,22 @@ def draw(current, streak, score, msg="", show_next=None):
     print(f"  Streak: {streak_bar(streak)}   Score: {B}{score}{R}\n")
 
     r, s = current
-    s_str = f"{RS}{s}{R}" if s in ("♥","♦") else s
-    pad   = " " if r != "10" else ""
     print(f"  Current card:")
-    print(f"  ┌───┐")
-    print(f"  │{B}{pad}{r}{s_str}{R} │")
-    print(f"  └───┘\n")
+    for line in card_lines(r, s):
+        print(f"  {line}")
+    print()
 
     if show_next:
         nr, ns = show_next
-        ns_str = f"{RS}{ns}{R}" if ns in ("♥","♦") else ns
-        npad   = " " if nr != "10" else ""
         print(f"  Next card:")
-        print(f"  ┌───┐")
-        print(f"  │{B}{npad}{nr}{ns_str}{R} │")
-        print(f"  └───┘\n")
+        for line in card_lines(nr, ns):
+            print(f"  {line}")
+        print()
     else:
         print(f"  Next card:")
-        print(f"  ┌───┐")
-        print(f"  │{DIM} ??? {R}│")
-        print(f"  └───┘\n")
+        for line in card_lines("?", "?", hidden=True):
+            print(f"  {line}")
+        print()
 
     if msg:
         print(f"  {msg}\n")

@@ -131,9 +131,9 @@ def diff_menu():
         key = getch()
         if key in ("q", "Q", "\x1b", "\x03"):
             return None
-        elif key == "\x1b[A":
+        elif key in ("\x1b[A", "\x1bOA"):
             selected = (selected - 1) % len(DIFFICULTIES)
-        elif key == "\x1b[B":
+        elif key in ("\x1b[B", "\x1bOB"):
             selected = (selected + 1) % len(DIFFICULTIES)
         elif key in ("\r", "\n"):
             return selected
@@ -157,7 +157,11 @@ def play(diff_idx):
               f"  {DIM}{score_str}{pct_str}{RESET}")
         print(f"{BOLD}{CYAN}{HR}{RESET}")
         print()
-        print(f"  {BOLD}{YELLOW}{question}{RESET}")
+        box_inner = f"    {question}    "
+        box_width = len(box_inner)
+        print(f"  ┌{'─' * box_width}┐")
+        print(f"  │{BOLD}{YELLOW}{box_inner}{RESET}│")
+        print(f"  └{'─' * box_width}┘")
         print()
 
         t_start = time.monotonic()

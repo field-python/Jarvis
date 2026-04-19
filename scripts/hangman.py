@@ -176,12 +176,12 @@ def draw(word, guessed, wrong_letters, hint, wins, losses):
     rows.append(f"  {BOLD}{CYAN}══════════ HANGMAN ══════════{RESET}  {DIM}W:{wins}  L:{losses}{RESET}")
     rows.append("")
 
-    # Gallows
+    # Gallows — red when danger (5+ wrong), dim otherwise
     for line in stage:
         if n_wrong >= MAX_WRONG:
             rows.append(f"  {RED}{line}{RESET}")
         elif n_wrong >= 5:
-            rows.append(f"  {YELLOW}{line}{RESET}")
+            rows.append(f"  {RED}{line}{RESET}")
         else:
             rows.append(f"  {DIM}{line}{RESET}")
 
@@ -192,15 +192,15 @@ def draw(word, guessed, wrong_letters, hint, wins, losses):
         if ch in guessed:
             display += f"{BOLD}{GREEN}{ch}{RESET} "
         else:
-            display += f"{CYAN}_{RESET} "
+            display += f"{YELLOW}_{RESET} "
     rows.append(f"  {display}")
 
     # Hint
     rows.append(f"\n  {DIM}Hint: {hint}{RESET}")
 
-    # Wrong letters
+    # Wrong letters — dim red
     if wrong_letters:
-        wrong_str = "  ".join(f"{RED}{c}{RESET}" for c in sorted(wrong_letters))
+        wrong_str = "  ".join(f"{DIM}{RED}{c}{RESET}" for c in sorted(wrong_letters))
         rows.append(f"\n  Wrong: {wrong_str}")
     else:
         rows.append(f"\n  {DIM}No wrong guesses yet{RESET}")

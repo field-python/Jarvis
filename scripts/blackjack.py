@@ -41,13 +41,42 @@ def is_pair(hand):
 def is_blackjack(hand):
     return len(hand) == 2 and hand_total(hand) == 21
 
-def fmt_card(rank, suit, hidden=False):
-    if hidden: return f"{DIM}[??]{R}"
-    s = f"{RS}{suit}{R}" if suit in ("♥","♦") else suit
-    return f"{B}[{rank}{s}]{R}"
+def card_lines(rank, suit, hidden=False):
+    """Return a list of 6 strings representing one playing card."""
+    if hidden:
+        return [
+            "┌──────┐",
+            "│▓▓▓▓▓▓│",
+            "│▓▓▓▓▓▓│",
+            "│▓▓▓▓▓▓│",
+            "│▓▓▓▓▓▓│",
+            "└──────┘",
+        ]
+    s_color = RS if suit in ("♥", "♦") else ""
+    s_reset = R if suit in ("♥", "♦") else ""
+    colored_suit = f"{s_color}{suit}{s_reset}"
+    r = f"{B}{rank}{R}"
+    # Interior is 6 chars wide.  rank left-justified top, centered suit middle, rank right-justified bottom.
+    # rank display may be 1 or 2 visible chars
+    r_len = len(rank)
+    top_pad    = " " * (6 - r_len)       # e.g. "A     " or "10    "
+    bot_pad    = " " * (6 - r_len)       # e.g. "     A" — built below
+    suit_left  = " " * ((6 - 1) // 2)    # centre suit in 6 chars (suit is 1 visible char wide)
+    suit_right = " " * (6 - 1 - len(suit_left))
+    return [
+        "┌──────┐",
+        f"│{r}{top_pad}│",
+        f"│      │",
+        f"│{suit_left}{colored_suit}{suit_right}│",
+        f"│{bot_pad}{r}│",
+        "└──────┘",
+    ]
 
-def fmt_hand(hand, hide_idx=None):
-    return "  ".join(fmt_card(r,s, i==hide_idx) for i,(r,s) in enumerate(hand))
+def print_hand(hand, hide_idx=None, prefix="  "):
+    """Print all cards in hand side by side (5 lines each)."""
+    all_lines = [card_lines(r, s, i == hide_idx) for i, (r, s) in enumerate(hand)]
+    for row in range(6):
+        print(prefix + "  ".join(card[row] for card in all_lines))
 
 def getch():
     fd = sys.stdin.fileno()
@@ -73,13 +102,15 @@ def chips_bar(chips):
 
 def draw_table(hands, bets, active, dealer, hide_dealer, msg="", chips=0, bet=0):
     os.system("clear")
-    print(f"{B}{CY}{HR}{R}")
-    print(f"{B}{CY}  Jarvis  ♠  Blackjack{R}  {DIM}Chips: {chips_bar(chips)}{R}")
-    print(f"{B}{CY}{HR}{R}\n")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}")
+    print(f"{B}{CY}  ♠ ♥ ♦ ♣   Jarvis Blackjack   ♣ ♦ ♥ ♠{R}  {DIM}Chips: {chips_bar(chips)}{R}")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}\n")
 
     # Dealer
     d_label = f"{hand_total([dealer[0]])}+?" if hide_dealer else str(hand_total(dealer))
-    print(f"  {B}Dealer{R}  {fmt_hand(dealer, hide_idx=1 if hide_dealer else None)}  {DIM}({d_label}){R}\n")
+    print(f"  {B}Dealer{R}  {DIM}({d_label}){R}")
+    print_hand(dealer, hide_idx=1 if hide_dealer else None)
+    print()
 
     # Player hand(s)
     for i, hand in enumerate(hands):
@@ -87,17 +118,18 @@ def draw_table(hands, bets, active, dealer, hide_dealer, msg="", chips=0, bet=0)
         color = RD if tot > 21 else (GR if tot >= 18 else R)
         label = f"{B}You   {R}" if len(hands)==1 else (f"{B}Hand {i+1}{R}")
         arrow = f" {YL}◄{R}" if i == active and len(hands) > 1 else ""
-        print(f"  {label}  {fmt_hand(hand)}  {DIM}({color}{tot}{R}{DIM}){R}  {DIM}Bet:${bets[i]}{R}{arrow}")
-    print()
+        print(f"  {label}  {DIM}({color}{tot}{R}{DIM}){R}  {DIM}Bet:${bets[i]}{R}{arrow}")
+        print_hand(hand)
+        print()
 
     if msg:
         print(f"  {msg}\n")
 
 def get_bet(chips):
     os.system("clear")
-    print(f"{B}{CY}{HR}{R}")
-    print(f"{B}{CY}  Jarvis  ♠  Blackjack{R}")
-    print(f"{B}{CY}{HR}{R}\n")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}")
+    print(f"{B}{CY}  ♠ ♥ ♦ ♣   Jarvis Blackjack   ♣ ♦ ♥ ♠{R}")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}\n")
     print(f"  Chips: {chips_bar(chips)}\n")
     print(f"  {DIM}Min bet: ${MIN_BET}{R}")
     print(f"  {YL}[Enter]{R} = $10   {YL}[1-9]{R} × $10   {YL}[A]{R} = all-in   {YL}[Q]{R} = quit\n")
@@ -185,8 +217,10 @@ def play_hand(deck, chips):
             elif key == "d" and can_double:
                 bets[h] *= 2
                 hand.append(deck.pop())
+                r_d, s_d = hand[-1]
+                s_colored = f"{RS}{s_d}{R}" if s_d in ("♥","♦") else s_d
                 draw_table(hands, bets, h, dealer, True,
-                           f"{YL}Doubled down!{R}  Drew: {fmt_card(*hand[-1])}", chips, bet)
+                           f"{YL}Doubled down!{R}  Drew: {B}[{r_d}{s_colored}]{R}", chips, bet)
                 results.append(("stand", h))
                 break
 
@@ -237,9 +271,9 @@ def play_hand(deck, chips):
 
 def main():
     os.system("clear")
-    print(f"{B}{CY}{HR}{R}")
-    print(f"{B}{CY}  Jarvis  ♠  Blackjack{R}")
-    print(f"{B}{CY}{HR}{R}\n")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}")
+    print(f"{B}{CY}  ♠ ♥ ♦ ♣   Jarvis Blackjack   ♣ ♦ ♥ ♠{R}")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}\n")
     print(f"  Get closest to {B}21{R} without going over.")
     print(f"  Dealer hits on ≤16. Blackjack pays 3:2.\n")
     print(f"  {YL}[H]{R} Hit  {YL}[S]{R} Stand  {YL}[D]{R} Double  {YL}[P]{R} Split  {YL}[Q]{R} Quit\n")
@@ -259,9 +293,9 @@ def main():
 
     # Summary
     os.system("clear")
-    print(f"{B}{CY}{HR}{R}")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}")
     print(f"{B}  Blackjack  |  Game Over{R}")
-    print(f"{B}{CY}{HR}{R}\n")
+    print(f"{B}{CY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{R}\n")
     print(f"  Hands played:  {hands_played}")
     delta = chips - START_CHIPS
     sign  = "+" if delta >= 0 else ""
