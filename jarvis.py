@@ -187,6 +187,7 @@ def do_help():
   Jarvis download-culture        Download 70s rock, occult, Aleister Crowley topics
   Jarvis download-tech           Download Linux, WiFi, networking reference
   Jarvis download-pop-culture    Download movies, TV, music, gaming, sports stars
+  Jarvis download-youtube        Download YouTube creators, culture, platform history
   Jarvis download-misc           Download law, finance, astronomy, mythology, philosophy,
                                    psychology, true crime, military, automotive
   Jarvis download-fringe         Download Tesla, free energy, vortex math, quantum
@@ -625,6 +626,8 @@ def main():
         run_py("download-tech-linux.py", *rest)
     elif cmd in ("download-pop-culture", "download-pop"):
         run_py("download-pop-culture.py", *rest)
+    elif cmd in ("download-youtube", "download-yt"):
+        run_py("download-youtube.py", *rest)
     elif cmd in ("download-misc", "download-extra"):
         run_py("download-misc.py", *rest)
     elif cmd in ("download-fringe", "download-esoteric", "download-conspiracy",

@@ -248,6 +248,7 @@ SUBMENUS = {
         ("Culture & occult",         ["download-culture"],           False, ""),
         ("Linux & tech",             ["download-tech"],              False, ""),
         ("Pop culture",              ["download-pop-culture"],       False, ""),
+        ("YouTube & creators",       ["download-youtube"],           False, ""),
         ("Misc knowledge",           ["download-misc"],              False, ""),
         ("Law & legal reference",    ["download-law"],               False, ""),
         ("Fringe & esoteric",        ["download-fringe"],            False, ""),
