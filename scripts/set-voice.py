@@ -5,6 +5,9 @@ Downloads voices on demand and saves the selection to config/voice.conf.
 """
 import sys
 import os
+import tty
+import termios
+import select
 import urllib.request
 from pathlib import Path
 
@@ -70,6 +73,25 @@ def is_downloaded(name: str) -> bool:
     return (voice_dir / f"{name}.onnx").exists()
 
 
+def getch():
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        ch = os.read(fd, 1).decode("utf-8", errors="replace")
+        if ch == "\x1b":
+            r, _, _ = select.select([fd], [], [], 0.1)
+            if r:
+                rest = os.read(fd, 2).decode("utf-8", errors="replace")
+                if rest and rest[0] == "O" and len(rest) > 1:
+                    return "\x1b[" + rest[1]
+                return "\x1b" + rest
+            return "\x1b"
+        return ch
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 def download_voice(voice: dict) -> bool:
     name = voice["name"]
     path = voice["path"]
@@ -95,56 +117,77 @@ def download_voice(voice: dict) -> bool:
 
 
 
-def main():
-    cur = current_voice()
-
+def draw_menu(selected: int, cur: str):
+    os.system("clear")
     print(f"\n{BOLD}{CYAN}{HR}")
     print(f"  Jarvis  |  Voice Selection")
     print(f"{HR}{RESET}\n")
-
-    for i, v in enumerate(VOICES, 1):
+    for i, v in enumerate(VOICES):
         downloaded = is_downloaded(v["name"])
         active     = v["name"] == cur
-        dl_tag     = f"  {DIM}[ready]{RESET}"   if downloaded and not active else ""
         cur_tag    = f"  {GREEN}◀ active{RESET}" if active else ""
+        dl_tag     = f"  {DIM}[ready]{RESET}"    if downloaded and not active else ""
         nd_tag     = f"  {DIM}[download on select]{RESET}" if not downloaded else ""
-        print(f"  {BOLD}{i}.{RESET} {v['label']}{cur_tag}{dl_tag}{nd_tag}")
+        num = f"{i + 1}."
+        if i == selected:
+            print(f"  {BOLD}{GREEN}{num} ▶  {v['label']}{RESET}{cur_tag}{dl_tag}{nd_tag}")
+        else:
+            print(f"  {DIM}{num}    {v['label']}{RESET}{cur_tag}{dl_tag}{nd_tag}")
+    print(f"\n  {DIM}↑↓ to select  |  Enter to activate  |  Q/ESC to exit{RESET}\n")
 
-    print(f"\n{DIM}  Enter number to switch  |  Enter to cancel{RESET}")
-    try:
-        raw = input("\n  Choice: ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print("\n  Cancelled.")
-        return
 
-    if not raw:
-        print("  No change.")
-        return
+def main():
+    cur      = current_voice()
+    selected = next((i for i, v in enumerate(VOICES) if v["name"] == cur), 0)
 
-    if not raw.isdigit() or not (1 <= int(raw) <= len(VOICES)):
-        print("  Invalid choice.")
-        return
+    while True:
+        draw_menu(selected, cur)
+        key = getch()
 
-    voice = VOICES[int(raw) - 1]
-
-    if voice["name"] == cur:
-        print(f"\n  Already using {voice['label'].strip()}.")
-        return
-
-    if not is_downloaded(voice["name"]):
-        print()
-        ok = download_voice(voice)
-        if not ok:
-            print(f"\n  Download failed. Voice not changed.")
+        if key in ("q", "Q", "\x1b", "\x03"):
+            os.system("clear")
             return
 
-    config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "voice.conf").write_text(voice["name"] + "\n")
-    print(f"\n  {GREEN}Voice set to:{RESET} {voice['label'].strip()}")
-    print(f"  Playing preview...\n")
-    import subprocess
-    subprocess.run(["bash", str(tts_script), "Jarvis online. How may I assist you?"])
-    print(f"\n{HR}\n")
+        elif key == "\x1b[A":
+            selected = (selected - 1) % len(VOICES)
+
+        elif key == "\x1b[B":
+            selected = (selected + 1) % len(VOICES)
+
+        elif key.isdigit():
+            n = int(key)
+            if 1 <= n <= len(VOICES):
+                selected = n - 1
+
+        elif key in ("\r", "\n"):
+            voice = VOICES[selected]
+            if voice["name"] == cur:
+                print(f"\n  Already using {voice['label'].strip()}.")
+                getch()
+                continue
+
+            if not is_downloaded(voice["name"]):
+                print()
+                ok = download_voice(voice)
+                if not ok:
+                    print(f"\n  Download failed. Voice not changed.")
+                    getch()
+                    continue
+
+            config_dir.mkdir(parents=True, exist_ok=True)
+            (config_dir / "voice.conf").write_text(voice["name"] + "\n")
+            cur = voice["name"]
+            os.system("clear")
+            print(f"\n{BOLD}{CYAN}{HR}")
+            print(f"  Jarvis  |  Voice Selection")
+            print(f"{HR}{RESET}\n")
+            print(f"  {GREEN}Voice set to:{RESET} {voice['label'].strip()}")
+            print(f"  Playing preview...\n")
+            import subprocess
+            subprocess.run(["bash", str(tts_script), "Jarvis online. How may I assist you?"])
+            print(f"\n  {DIM}Any key to continue...{RESET}", end="", flush=True)
+            getch()
+            print()
 
 
 if __name__ == "__main__":

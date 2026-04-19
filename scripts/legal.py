@@ -170,6 +170,8 @@ def getch():
             r, _, _ = _sel.select([fd], [], [], 0.1)
             if r:
                 rest = os.read(fd, 2).decode("utf-8", errors="replace")
+                if rest and rest[0] == "O" and len(rest) > 1:
+                    return "\x1b[" + rest[1]  # normalize \x1bOA → \x1b[A
                 return "\x1b" + rest
             return "\x1b"
         return ch
