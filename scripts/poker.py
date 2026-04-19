@@ -26,13 +26,22 @@ def make_deck():
     random.shuffle(d)
     return d
 
-def fmt_card(r, s, hidden=False):
-    if hidden: return f"{DIM}[??]{R}"
-    sc = f"{RS}{s}{R}" if s in ("♥","♦") else s
-    return f"{B}[{r}{sc}]{R}"
+def card_lines(rank, suit, hidden=False):
+    if hidden:
+        return ["┌──────┐","│▓▓▓▓▓▓│","│▓▓▓▓▓▓│","│▓▓▓▓▓▓│","│▓▓▓▓▓▓│","└──────┘"]
+    sc = f"{RS}{suit}{R}" if suit in ("♥","♦") else suit
+    r  = f"{B}{rank}{R}"
+    rl = len(rank)
+    tp = " " * (6 - rl)
+    sl = " " * ((6 - 1) // 2)
+    sr = " " * (6 - 1 - len(sl))
+    return ["┌──────┐", f"│{r}{tp}│", "│      │", f"│{sl}{sc}{sr}│", f"│{tp}{r}│", "└──────┘"]
 
-def fmt_hand(hand, hidden=False):
-    return "  ".join(fmt_card(r,s,hidden) for r,s in hand)
+def print_cards(hand, hidden=False, prefix="  "):
+    lines = [card_lines(r, s, hidden) for r, s in hand]
+    for row in range(6):
+        print(prefix + "  ".join(c[row] for c in lines))
+
 
 def getch():
     fd = sys.stdin.fileno()
@@ -118,25 +127,25 @@ def draw_table(p_hand, ai_hand, community, pot, p_chips, ai_chips,
     print(f"{B}{CY}  Jarvis  ♠  Texas Hold'em{R}  {DIM}Pot: ${pot}{R}")
     print(f"{B}{CY}{HR}{R}\n")
 
-    print(f"  {B}Jarvis{R}  {fmt_hand(ai_hand, hidden=not show_ai)}  "
-          f"{DIM}(${ai_chips}){R}"
-          + (f"  {DIM}bet ${ai_bet}{R}" if ai_bet else ""))
+    ai_label = f"  {B}Jarvis{R}  {DIM}(${ai_chips}){R}" + (f"  {DIM}bet ${ai_bet}{R}" if ai_bet else "")
+    print(ai_label)
+    print_cards(ai_hand, hidden=not show_ai)
+    if show_ai and community:
+        print(f"  {DIM}Jarvis: {hand_name(ai_hand+community)}{R}")
     print()
 
     if community:
-        comm_str = "  ".join(fmt_card(r,s) for r,s in community)
         label = {"flop":"Flop","turn":"Turn","river":"River"}.get(stage, stage)
-        print(f"  {DIM}{label}:{R}  {comm_str}")
-        if show_ai and len(community)>=3:
-            print(f"  {DIM}Jarvis: {hand_name(ai_hand+community)}{R}")
+        print(f"  {DIM}{label}:{R}")
+        print_cards(community)
     else:
         print(f"  {DIM}Waiting for community cards...{R}")
     print()
 
-    print(f"  {B}You   {R}  {fmt_hand(p_hand)}  "
-          f"{DIM}(${p_chips}){R}"
-          + (f"  {DIM}bet ${p_bet}{R}" if p_bet else ""))
-    if len(p_hand)+len(community)>=5:
+    p_label = f"  {B}You   {R}  {DIM}(${p_chips}){R}" + (f"  {DIM}bet ${p_bet}{R}" if p_bet else "")
+    print(p_label)
+    print_cards(p_hand)
+    if len(p_hand) + len(community) >= 5:
         print(f"  {DIM}Your hand: {hand_name(p_hand+community)}{R}")
     print()
 
