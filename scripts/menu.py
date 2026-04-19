@@ -34,6 +34,7 @@ SUBMENUS = {
         ("🎤  Voice mode",        ["voice"],                 False, ""),
         ("🔊  Convo mode",        ["convo"],                 False, ""),
         ("🎭  Set personality",   ["personality"],           False, ""),
+        ("🔊  Set voice",         ["set-voice"],             False, ""),
     ],
     "brainstorm_menu": [
         ("💡  Brainstorm ideas",    ["brainstorm"],    True,  "Topic or problem: "),
@@ -53,6 +54,7 @@ SUBMENUS = {
         ("📚  Learn to code",     ["learn"],                 True,  "Topic (e.g. Python for loops): "),
         ("💻  Code help",         ["code"],                  True,  "Describe what to build: "),
         ("🧮  Calculator",        ["calc"],                  True,  "Expression (e.g. 180 lbs to kg): "),
+        ("🩹  First Aid",         ["firstaid"],              True,  "Topic (e.g. burns, CPR, bleeding): "),
     ],
     "life": [
         ("🍳  Recipes",           ["__submenu__", "recipes"],  False, ""),
@@ -284,6 +286,8 @@ HELP = {
     "Interactive Law":         "Analyze legal scenarios and explain your rights",
     "Law Library":             "Browse 389 law documents — cases, statutes, rights, Black's Law",
     "Show help":               "Full command reference",
+    "First Aid":               "Offline first aid reference — burns, CPR, bleeding, and more",
+    "Set voice":               "Choose Jarvis TTS voice — British Alan, US Ryan, Amy, and others",
     "Brainstorm":              "Brainstorm, pros/cons, compare, translate, plan, edit",
     "Calculator":              "Instant math and unit conversions — no AI needed",
     "To-do list":              "Add, check off, and manage your checklists",
@@ -507,11 +511,11 @@ def draw_menu(items, selected):
 
 
 # Commands that loop — keep asking questions instead of returning to menu
-ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember", "legal", "brainstorm", "pros", "eli5", "compare", "plan", "translate", "edit", "calc", "whatif", "devil", "conspiracy", "invent", "opinion"}
+ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember", "legal", "brainstorm", "pros", "eli5", "compare", "plan", "translate", "edit", "calc", "whatif", "devil", "conspiracy", "invent", "opinion", "firstaid"}
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.
-SELF_MANAGED = {"chat", "voice", "convo", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather", "speech", "personality", "writing"}
+SELF_MANAGED = {"chat", "voice", "convo", "language", "skill", "trivia", "hangman", "word-scramble", "remind-start", "news", "daily", "symptom", "recipe", "timer", "erowid", "holybooks", "classics", "blackjack", "mathquiz", "wordchain", "learn", "legal", "stocks", "slots", "higherlower", "roulette", "connectfour", "yahtzee", "poker", "weather", "speech", "personality", "writing", "set-voice"}
 
 
 def _loop_prompt(prompt):
