@@ -20,7 +20,7 @@ MENU = [
     ("📰  Jarvis Today", ["__submenu__", "info"],     False, ""),
     ("📚  Library",     ["__submenu__", "library"],  False, ""),
     ("🎮  Games",       ["__submenu__", "games"],    False, ""),
-    ("💡  Brainstorm",  ["brainstorm"],              True,  "What do you want to brainstorm: "),
+    ("💡  Brainstorm",  ["__submenu__", "brainstorm_menu"], False, ""),
     ("⚙️  System",      ["__submenu__", "system"],   False, ""),
 ]
 
@@ -35,8 +35,17 @@ SUBMENUS = {
         ("🗣️  Convo mode",        ["convo"],                 False, ""),
         ("🎭  Set personality",   ["personality"],           False, ""),
     ],
+    "brainstorm_menu": [
+        ("💡  Brainstorm ideas",    ["brainstorm"],    True,  "Topic or problem: "),
+        ("🚿  Shower Thoughts",    ["shower"],        False, ""),
+        ("🤔  What If...",         ["whatif"],        True,  "Wild premise: "),
+        ("😈  Devil's Advocate",   ["devil"],         True,  "Position to argue against: "),
+        ("🕵️   Conspiracy Theory",  ["conspiracy"],    True,  "Topic: "),
+        ("🎲  Random Invention",   ["invent"],        True,  "Two things to combine: "),
+        ("🌶️   Unpopular Opinion",  ["opinion"],       True,  "Topic: "),
+        ("🔮  Fortune Teller",     ["fortune"],       False, ""),
+    ],
     "tools_main": [
-        ("💡  Brainstorm",        ["brainstorm"],            True,  "Topic or problem: "),
         ("💻  Code help",         ["code"],                  True,  "Describe what to build: "),
         ("📚  Learn to code",     ["learn"],                 True,  "Topic (e.g. Python for loops): "),
         ("🗣️  Language Hub",      ["language"],              False, ""),
@@ -497,7 +506,7 @@ def draw_menu(items, selected):
 
 
 # Commands that loop — keep asking questions instead of returning to menu
-ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember", "legal", "brainstorm", "pros", "eli5", "compare", "plan", "translate", "edit", "calc"}
+ASK_LOOP_CMDS = {"ask", "brief", "detailed", "cite", "web", "firstaid", "search", "find", "wiki", "remember", "legal", "brainstorm", "pros", "eli5", "compare", "plan", "translate", "edit", "calc", "whatif", "devil", "conspiracy", "invent", "opinion"}
 
 # Commands that manage their own exit flow (Q/ESC exits them internally).
 # Skip the extra "Press ESC to return to menu..." wait for these.

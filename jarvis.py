@@ -508,6 +508,20 @@ def main():
         run_py("symptom.py", *rest)
     elif cmd in ("brainstorm", "ideas"):
         run_py("brainstorm.py", *rest)
+    elif cmd in ("shower", "shower-thoughts"):
+        run_py("funthink.py", "shower", *rest)
+    elif cmd in ("whatif", "what-if"):
+        run_py("funthink.py", "whatif", *rest)
+    elif cmd in ("devil", "devils-advocate"):
+        run_py("funthink.py", "devil", *rest)
+    elif cmd in ("conspiracy", "conspiracy-theory"):
+        run_py("funthink.py", "conspiracy", *rest)
+    elif cmd in ("invent", "invention"):
+        run_py("funthink.py", "invent", *rest)
+    elif cmd in ("opinion", "unpopular-opinion"):
+        run_py("funthink.py", "opinion", *rest)
+    elif cmd in ("fortune", "fortune-teller"):
+        run_py("funthink.py", "fortune", *rest)
     elif cmd in ("pros", "pros-cons", "proscons"):
         run_py("pros.py", *rest)
     elif cmd in ("eli5", "explain", "simple"):
