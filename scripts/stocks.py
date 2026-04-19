@@ -222,7 +222,13 @@ def interactive_mode(symbols, period="1mo"):
             elif ch.lower() == "w":
                 os.system("clear")
                 show_watchlist()
-                input(f"  {DIM}Press Enter to continue...{R}")
+                sys.stdout.write(f"  {DIM}Press any key to continue...{R}")
+                sys.stdout.flush()
+                os.read(fd, 1)
+                # drain any escape sequence bytes left from arrow keys
+                import select as _sel
+                while _sel.select([fd], [], [], 0.05)[0]:
+                    os.read(fd, 1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
 

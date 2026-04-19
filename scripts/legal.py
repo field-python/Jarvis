@@ -190,29 +190,120 @@ def get_law_category(filepath):
     return "other"
 
 
-def display_law_doc(filepath):
-    text = filepath.read_text(encoding="utf-8")
-    cat  = get_law_category(filepath)
-    label = CATEGORY_LABELS.get(cat, cat.replace("-", " ").title())
-    first = text.splitlines()[0].lstrip("#").strip()
-    print()
-    hr()
-    print(f"  {BOLD}{first}{RESET}  {DIM}[{label}]{RESET}")
-    hr()
-    print()
+def _render_law_lines(text):
+    """Convert markdown text to coloured display lines."""
+    out = []
     for line in text.strip().splitlines():
         if line.startswith("# "):
-            print(f"  {BOLD}{CYAN}{line[2:]}{RESET}")
+            out.append(f"  {BOLD}{CYAN}{line[2:]}{RESET}")
         elif line.startswith("## "):
-            print(f"\n  {BOLD}{YELLOW}{line[3:]}{RESET}")
+            out.append("")
+            out.append(f"  {BOLD}{YELLOW}{line[3:]}{RESET}")
         elif line.startswith("### "):
-            print(f"\n  {BOLD}{line[4:]}{RESET}")
+            out.append("")
+            out.append(f"  {BOLD}{line[4:]}{RESET}")
         elif line.strip().startswith("- "):
-            print(f"  • {line.strip()[2:]}")
+            out.append(f"  \u2022 {line.strip()[2:]}")
         else:
-            print(f"  {line}" if line.strip() else "")
-    print()
-    hr()
+            out.append(f"  {line}" if line.strip() else "")
+    return out
+
+
+def _build_law_toc(lines):
+    """Return list of (heading_text, line_index) for ## and ### headings."""
+    toc = []
+    ansi = re.compile(r'\x1b\[[0-9;]*m')
+    for i, line in enumerate(lines):
+        clean = ansi.sub('', line).strip()
+        if clean and (YELLOW in line or (BOLD in line and CYAN not in line and len(clean) < 80)):
+            toc.append((clean[:68], i))
+    return toc
+
+
+def display_law_doc(filepath):
+    text  = filepath.read_text(encoding="utf-8")
+    cat   = get_law_category(filepath)
+    label = CATEGORY_LABELS.get(cat, cat.replace("-", " ").title())
+    first = text.splitlines()[0].lstrip("#").strip()
+
+    lines = _render_law_lines(text)
+    toc   = _build_law_toc(lines)
+
+    try:
+        term_rows = os.get_terminal_size().lines - 6
+    except OSError:
+        term_rows = 20
+    page_size = max(10, term_rows)
+    total  = len(lines)
+    offset = 0
+
+    while True:
+        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.write(f"{BOLD}{CYAN}{'━'*56}{RESET}\n")
+        sys.stdout.write(f"{BOLD}  {first}{RESET}  {DIM}[{label}]{RESET}\n")
+        sys.stdout.write(f"{BOLD}{CYAN}{'━'*56}{RESET}\n\n")
+
+        end = min(offset + page_size, total)
+        for line in lines[offset:end]:
+            sys.stdout.write(line + "\n")
+
+        sys.stdout.write("\n")
+        pct        = int((end / total) * 100) if total else 100
+        bar_filled = int(pct / 5)
+        bar        = f"{CYAN}{'█' * bar_filled}{'░' * (20 - bar_filled)}{RESET}"
+        at_end     = end >= total
+        toc_hint   = f"  {YELLOW}[T]{RESET}{DIM} contents{RESET}" if toc else ""
+
+        if at_end:
+            sys.stdout.write(f"  {bar}  {DIM}{pct}%  END  Q/ESC back  ↑ up{RESET}{toc_hint}\n")
+        else:
+            sys.stdout.write(f"  {bar}  {DIM}{pct}%  Space/↓ pg  ↑ pg  ←→ line  Q/ESC back{RESET}{toc_hint}\n")
+        sys.stdout.flush()
+
+        key = getch()
+        if key in ("q", "Q", "\x1b"):
+            return
+        elif key in (" ", "\x1b[B"):          # space / down = page down
+            if not at_end:
+                offset = min(offset + page_size, total - page_size)
+        elif key == "\x1b[A":                  # up = page up
+            offset = max(0, offset - page_size)
+        elif key == "\x1b[C":                  # right = line down
+            if not at_end:
+                offset = min(offset + 1, total - page_size)
+        elif key == "\x1b[D":                  # left = line up
+            offset = max(0, offset - 1)
+        elif key in ("g", "G", "\r", "\n"):
+            offset = 0
+        elif key in ("e", "E"):
+            offset = max(0, total - page_size)
+        elif key in ("t", "T") and toc:
+            # simple inline TOC jump
+            sel = 0
+            while True:
+                sys.stdout.write("\033[2J\033[H")
+                sys.stdout.write(f"{BOLD}{CYAN}  Table of Contents — {first}{RESET}\n\n")
+                vis = min(20, page_size)
+                top = max(0, sel - vis // 2)
+                for j in range(top, min(top + vis, len(toc))):
+                    heading, _ = toc[j]
+                    if j == sel:
+                        sys.stdout.write(f"  {BOLD}{GREEN}▶  {heading}{RESET}\n")
+                    else:
+                        sys.stdout.write(f"  {DIM}   {heading}{RESET}\n")
+                sys.stdout.write(f"\n  {DIM}↑↓ navigate  Enter jump  ESC cancel{RESET}\n")
+                sys.stdout.flush()
+                k = getch()
+                if k in ("\x1b", "q", "Q"):
+                    break
+                elif k == "\x1b[A":
+                    sel = max(0, sel - 1)
+                elif k == "\x1b[B":
+                    sel = min(len(toc) - 1, sel + 1)
+                elif k in ("\r", "\n"):
+                    _, line_idx = toc[sel]
+                    offset = max(0, min(line_idx, total - page_size))
+                    break
 
 
 def browse_law_library(category_filter=None):

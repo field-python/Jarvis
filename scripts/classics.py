@@ -181,6 +181,64 @@ def render_markdown(text):
     return rendered
 
 
+def build_toc(lines):
+    """Find chapter/section headers and their line offsets."""
+    toc = []
+    ansi = re.compile(r'\033\[[0-9;]*m')
+    for i, line in enumerate(lines):
+        plain = ansi.sub('', line).strip()
+        if plain and len(plain) < 80 and (
+            plain.startswith("━━━") or
+            plain.startswith("──") or
+            plain.isupper() or
+            plain.lower().startswith("chapter ") or
+            plain.lower().startswith("book ") or
+            plain.lower().startswith("part ") or
+            plain.lower().startswith("volume ")
+        ):
+            label = plain.strip("━─ ").strip()
+            if label and len(label) > 2:
+                toc.append((label[:68], i))
+    return toc
+
+
+def toc_browser(toc, title, page_size):
+    """Arrow-key TOC selector. Returns line offset or None."""
+    selected = 0
+    view_top = 0
+    while True:
+        clear()
+        try:
+            rows = os.get_terminal_size().lines - 6
+        except OSError:
+            rows = 20
+        visible = max(5, rows)
+        print(f"{BOLD}{YELLOW}{'━' * 72}{RESET}")
+        print(f"{BOLD}  {title}  |  Table of Contents{RESET}")
+        print(f"{BOLD}{YELLOW}{'━' * 72}{RESET}\n")
+        for i in range(view_top, min(view_top + visible, len(toc))):
+            label, _ = toc[i]
+            if i == selected:
+                print(f"  {BOLD}{GREEN}▶  {label}{RESET}")
+            else:
+                print(f"  {DIM}   {label}{RESET}")
+        print(f"\n  {DIM}↑↓ navigate  |  Enter jump  |  Q back{RESET}")
+        key = getch()
+        if key in ("q", "Q", "\x1b"):
+            return None
+        elif key == "\x1b[A":
+            selected = max(0, selected - 1)
+            if selected < view_top:
+                view_top = selected
+        elif key == "\x1b[B":
+            selected = min(len(toc) - 1, selected + 1)
+            if selected >= view_top + visible:
+                view_top = selected - visible + 1
+        elif key in ("\r", "\n"):
+            _, line_idx = toc[selected]
+            return line_idx
+
+
 def view_book(book):
     try:
         text = book["path"].read_text(encoding="utf-8")
@@ -188,6 +246,7 @@ def view_book(book):
         print(f"  Error: {e}"); getch(); return
 
     lines     = render_markdown(text)
+    toc       = build_toc(lines)
     term_rows = os.get_terminal_size().lines - 5
     page_size = max(10, term_rows)
     total     = len(lines)
@@ -209,11 +268,12 @@ def view_book(book):
         bar_filled = int(pct / 5)
         bar        = f"{YELLOW}{'█' * bar_filled}{'░' * (20 - bar_filled)}{RESET}"
         at_end     = end >= total
+        toc_hint   = f"  {YELLOW}[T]{RESET}{DIM} contents{RESET}" if toc else ""
 
         if at_end:
-            print(f"  {bar}  {DIM}{pct}%  ── END ──  Q/ESC back  ↑ scroll up{RESET}")
+            print(f"  {bar}  {DIM}{pct}%  END  Q/ESC back  ↑ up{RESET}{toc_hint}")
         else:
-            print(f"  {bar}  {DIM}{pct}%  Space/↓ next  ↑ scroll up  Q/ESC back{RESET}")
+            print(f"  {bar}  {DIM}{pct}%  Space/↓ next  ↑ up  Q/ESC back{RESET}{toc_hint}")
 
         key = getch()
         if key in ("q", "Q", "\x1b"):
@@ -227,6 +287,10 @@ def view_book(book):
             offset = 0
         elif key in ("e", "E"):
             offset = max(0, total - page_size)
+        elif key in ("t", "T") and toc:
+            jump = toc_browser(toc, book["title"], page_size)
+            if jump is not None:
+                offset = min(jump, max(0, total - page_size))
 
 
 # ── list browser ──────────────────────────────────────────────────────────────
