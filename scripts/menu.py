@@ -221,7 +221,7 @@ SUBMENUS = {
     ],
     "games": [
         ("🃏  Blackjack",         ["blackjack"],     False, ""),
-        ("♠️  Poker (Hold'em)",   ["poker"],         False, ""),
+        ("♠️   Poker (Hold'em)",  ["poker"],         False, ""),
         ("🎰  Slots",             ["slots"],         False, ""),
         ("🎡  Roulette",          ["roulette"],      False, ""),
         ("🎲  Yahtzee",           ["yahtzee"],       False, ""),
