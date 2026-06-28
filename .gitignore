@@ -28,6 +28,11 @@ chroma_db/
 
 # ── cache ─────────────────────────────────────────────────────────────────────
 cache/
+.cache/
+
+# ── large local knowledge base (too large for GitHub, built locally) ──────────
+wikipedia/
+pdfs/
 
 # ── python ────────────────────────────────────────────────────────────────────
 __pycache__/
